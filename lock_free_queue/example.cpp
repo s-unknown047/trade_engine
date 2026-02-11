@@ -32,12 +32,10 @@ auto consumeFunc(LFQueue<MyStruct> *lfq, bool *flag) noexcept
 
 auto inline producerFunc(LFQueue<MyStruct> *lfq, bool *flag) noexcept
 {
-    // Set the flag to true to indicate that the producer has started producing
-   
-    for (int i = 0; i < 100; ++i)
+    
+
+    for (int i = 0; i < 10000; ++i)
     { 
-        // Set the flag to true to indicate that the producer has started producing
-         
         const MyStruct d{i, i * 10, i * 100};
         *(lfq->getNextToWriteTo()) = d;
         lfq->updateWriteIndex();
@@ -52,7 +50,7 @@ auto inline producerFunc(LFQueue<MyStruct> *lfq, bool *flag) noexcept
 
 int main(int, char **)
 {
-    LFQueue<MyStruct> lfq(100);
+    LFQueue<MyStruct> lfq(1000);
     bool flag = false; 
     auto ct = createAndStartThread(-1, "this is first thread", consumeFunc, &lfq, &flag);   
     auto pt = createAndStartThread(-1, "this is producer thread", producerFunc, &lfq, &flag);
