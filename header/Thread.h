@@ -26,6 +26,9 @@ namespace Common {
 
 //  T &&func is a function pointer or callable object to be executed in the new thread
 //  Args &&...args are the arguments to be passed to the function when it is called
+
+
+
 template <typename T, typename... Args>
 inline auto createAndStartThread(int core_id, const std::string &name,T &&func, Args &&...args) noexcept
 {
