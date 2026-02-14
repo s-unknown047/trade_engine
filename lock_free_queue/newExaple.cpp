@@ -113,12 +113,14 @@ int main() {
     auto pt = createAndStartThread(1, "producer thread", producer, lfq, producer_time);
     auto ct = createAndStartThread(2, "consumer thread", consumer, lfq, consumer_time); 
 
-    showBenchmark(producer_time, consumer_time);
+   
 
 
  
     pt->join();
     ct->join();
+    std::cout<<"*************************************************main is done consuming **********************************************************************************************" << std::endl;
+    showBenchmark(producer_time, consumer_time);
 
 
     return 0;

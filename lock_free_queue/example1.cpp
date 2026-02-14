@@ -20,6 +20,7 @@ auto consumeFunc(LFQueue<MyStruct> *lfq, std::atomic<bool> *flag) noexcept
 {
     
     while (!(flag->load()));
+    
       
     while (lfq->size())
     {
@@ -55,8 +56,8 @@ int main(int, char **)
 {   
     LFQueue<MyStruct> lfq(5000000);
     std::atomic<bool> flag(false); 
-    auto pt = createAndStartThread(-1, "this is producer thread", producerFunc, &lfq, &flag);
-    auto ct = createAndStartThread(-1, "this is first thread", consumeFunc, &lfq, &flag);   
+    auto pt = createAndStartThread(1, "this is producer thread", producerFunc, &lfq, &flag);
+    auto ct = createAndStartThread(2, "this is first thread", consumeFunc, &lfq, &flag);   
 
 
 
