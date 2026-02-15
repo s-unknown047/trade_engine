@@ -3,6 +3,9 @@
 #include <iostream>
 #include "../header/macros.h"
 
+#define LIKELY(x) __builtin_expect(!!(x), 1)
+#define UNLIKELY(x) __builtin_expect(!!(x), 0) 
+
 namespace Common
 {
     template <typename T>
@@ -25,11 +28,12 @@ namespace Common
 
         auto getNextToWriteTo() noexcept
         {
-            return &store_[next_write_index_];
+            return (next_write_index_ + 1) % store_.size() == next_read_index_ ? nullptr : &store_[next_write_index_];
         }
 
         auto updateWriteIndex() noexcept
-        {
+        {   
+            ASSERT((next_write_index_ + 1) % store_.size() != next_read_index_, "Write is Invalid " + std::to_string(pthread_self()));
             next_write_index_ = (next_write_index_ + 1) % store_.size();
             num_elements_++;
         }
@@ -42,7 +46,7 @@ namespace Common
         auto updateReadIndex() noexcept
         {
             next_read_index_ = (next_read_index_ + 1) % store_.size();
-            ASSERT(num_elements_ != 0, "Read is Invalid " + std::to_string(pthread_self()));
+            ASSERT(num_elements_ != 0, " Read is Invalid " + std::to_string(pthread_self()));
             num_elements_--;
         }
 
