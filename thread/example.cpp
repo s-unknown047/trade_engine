@@ -13,8 +13,7 @@ auto dummyFunction(int a, int b, bool sleep)
     std::cout << "Dummy function finished execution." << std::endl;
 }
 
-int main(int, char **)
-{
+int main(int, char **) {
     using namespace Common;
 
     auto t1 = createAndStartThread(-1, "dummy function 1", dummyFunction, 12, 10, false);
@@ -25,5 +24,6 @@ int main(int, char **)
     std::cout << "All threads have finished execution. Exiting main thread." << std::endl;
     delete t1;
     delete t2;
+    
     return 0;
 }

@@ -1,4 +1,4 @@
-// #pragma once
+#pragma once
 
 #include <thread>
 #include <atomic>
@@ -50,7 +50,7 @@ inline auto createAndStartThread(int core_id, const std::string &name,T &&func, 
 
     while(!running && !failed) {
     using namespace std::literals::chrono_literals;
-    std::this_thread::sleep_for(1s);
+    std::this_thread::yield();
     }
 
     if (failed) {

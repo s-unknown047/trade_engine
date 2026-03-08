@@ -11,6 +11,18 @@ Consumer time median: 634 ns
 Consumer time 0.75: 914 ns
 Consumer time 0.95: 1423 ns
 Consumer time 0.99: 1840 ns
+
+onsumer time median: 581 ns
+Consumer time 0.75: 780 ns
+Consumer time 0.95: 1320 ns
+Consumer time 0.99: 1625 ns
+*************************************************producer Benchmark*****************************************************************
+Producer time median: 539 ns
+Producer time 0.75: 740 ns
+Producer time 0.95: 1227 ns
+Producer time 0.99: 2423 ns
+
+
 *************************************************producer Benchmark**********************************************************************************************
 Producer time median: 591 ns
 Producer time 0.75: 911 ns

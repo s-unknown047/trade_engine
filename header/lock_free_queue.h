@@ -1,15 +1,15 @@
+#pragma once
 #include <atomic>
 #include <vector>
 #include <iostream>
-#include "../header/macros.h"
-
+#include "macros.h"
 #define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0) 
 
 namespace Common
 {
     template <typename T>
-    class LFQueue final
+    class LFQueue 
     {
     private:
         std::vector<T> store_;
@@ -31,7 +31,7 @@ namespace Common
             return (next_write_index_ + 1) % store_.size() == next_read_index_ ? nullptr : &store_[next_write_index_];
         }
 
-        auto updateWriteIndex() noexcept
+        auto  updateWriteIndex() noexcept
         {   
             ASSERT((next_write_index_ + 1) % store_.size() != next_read_index_, "Write is Invalid " + std::to_string(pthread_self()));
             next_write_index_ = (next_write_index_ + 1) % store_.size();
