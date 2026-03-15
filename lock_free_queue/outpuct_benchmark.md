@@ -8,9 +8,9 @@ Producer time 0.99: 804 ns
 Consumer time 0.99: 799 ns
 
 Consumer time median: 634 ns
-Consumer time 0.75: 914 ns
-Consumer time 0.95: 1423 ns
-Consumer time 0.99: 1840 ns
+Consumer time P75: 914 ns
+Consumer time P95: 1423 ns
+Consumer time P99: 1840 ns
 
 onsumer time median: 581 ns
 Consumer time 0.75: 780 ns

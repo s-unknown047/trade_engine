@@ -29,9 +29,9 @@ auto inline  producer(LFQueue<mystruct> &lfq, std::vector<std::chrono::duration<
     // std::this_thread::sleep_for(1s);  // 1std::chrono::seconds(1) is the same as 1s, it makes the code more readable and easier to understand that we are sleeping for 1 second.
     uint64_t cnt = {0};
     while (cnt < 1000000) {
+        
+        mystruct d{cnt, cnt + 1, cnt + 2};
         auto start = std::chrono::high_resolution_clock::now();
-        const mystruct d{cnt, cnt + 1, cnt + 2};
-       
         auto write_ptr = lfq.getNextToWriteTo();
         
         while (write_ptr == nullptr) {

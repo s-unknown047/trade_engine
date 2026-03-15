@@ -56,7 +56,7 @@ namespace internal_lib {
       running = false;
     }
 
-    void run(std::vector<std::chrono::duration<double, std::nano>>& consumer) noexcept {
+    void run() noexcept {
       std::ofstream file(file_name_, std::ios::out | std::ios::trunc);
 
       ASSERT(file.is_open(), "File not accessible");
@@ -79,19 +79,12 @@ namespace internal_lib {
       while (running) {
         
         bool busy = false;
-        
-        auto t_st = std::chrono::high_resolution_clock::now();
-        busy |= drainBatch(order_queue_, file, 100);
-        busy |= drainBatch(match_queue_, file, 100);
-        busy |= drainBatch(broadcast_queue_, file, 100);
-        
-        auto end = std::chrono::high_resolution_clock::now();
 
-        std::chrono::duration<double, std::nano> time = end - t_st;
-
-        consumer.push_back(time); 
+        busy |= drainBatch(order_queue_, file, 50);
+        busy |= drainBatch(match_queue_, file, 50);
+        busy |= drainBatch(broadcast_queue_, file, 50);
+        
         if (busy == false) std::this_thread::yield();
-
       
       }
 
@@ -126,7 +119,7 @@ namespace internal_lib {
       bool drainBatch(Common::LFQueue<internal_lib::LogElement>* q, std::ofstream& file, int limit) noexcept {
         
         // define a 4kb stack buffer to store value of LogElement we can store at most limit amout of logs   
-        char buffer[8192];
+        char buffer[4096];
         // start of buffer
         char* offset = buffer;
         // this pointing to end of the buffer - 128 for saftey so that there 
