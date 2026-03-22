@@ -90,3 +90,27 @@ system_clock : system wide real time wall clocl
 steady_clock : monotonically increasing clock
 
 high_resolution_clock : clock with the smallest tick period
+
+
+Today i learned about memory reordering in detail
+
+what is memory ordering this is a process performed by the compiler and os to optimise your code it does not matter in a single threaded code but for a multi threaded code it can create problem where the application need to read and write to a shared memory simultaneously
+
+three type of ordering in atomic variable 
+
+Sequentially Consistent: This is the most strict and straightforward ordering model. It guarantees that all the threads will agree on the same order of events, meaning that they will establish a single total modification order of all atomic operations that are tagged with memory_order_seq_cst.
+this means that no reordering how we write the code it is excepted to run in the same way. 
+
+
+Relaxed: This ordering poses no constraints on the CPU and the compiler. The only guarantee with this ordering is that the operations will be carried out atomically. This ordering applies to operations tagged with memory_order_relaxed.
+means it can reorder as it want most efficient and performance but can have different results.
+
+
+Acquire/Release: 
+Acquire: When you perform a load with memory_order_acquire, you are telling the system:
+
+    The Barrier: No memory reads or writes that appear after this load in the code can be reordered to happen before it.
+
+Release: When you perform a store with memory_order_release, you are telling the system:
+
+    The Barrier: No memory reads or writes that appear before this store in the code can be reordered to happen after it.
