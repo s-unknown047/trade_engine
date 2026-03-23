@@ -21,7 +21,7 @@ namespace internal_lib
         uint64_t arrival_cycle_count;
 
         // 8 byte
-        int system_id; // every order have its unique id in order gateway
+        uint32_t system_id; // every order have its unique id in order gateway
         float price;
 
         // 8 byte
@@ -59,13 +59,13 @@ namespace internal_lib
     {
         uint64_t arrived_cycle_count;
 
-        int order_id;
-        short trader_id;
+        uint64_t  order_id;
+        uint8_t trader_id;
         char order_type;
         char req_type;
 
         float price;
-        int quantity;
+        uint64_t quantity;
 
         uint64_t out_cycle_count;
     };

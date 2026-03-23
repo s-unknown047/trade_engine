@@ -121,18 +121,128 @@ namespace internal_lib {
 
       }
 
-      char* write_UserOrder(const UserOrder& order, char* buffer) {
-          buffer = write_string("user order Arrived_cycle count : ", buffer);
-          *buffer++ = '\n';
-          buffer = convert_u64_to_str(order.arrived_cycle_count, buffer);
-          buffer = write_string ("UserOrder id", buffer);
-          buffer = convert_u64_to_str(order.order_id, buffer);
-          *buffer++ = '\n';
-          buffer = write_string("Trade id", buffer);
-          buffer = 
+      char* float_to_char(const float num, char* buffer) {
+          int int_part = int(num);
+          buffer = convert_u64_to_str(int_part, buffer);
+          *buffer++ = '.';
+
+          int frac_part = (int)((num - int_part) * 100);
+          if (frac_part < 0) frac_part =  -frac_part;
+          
+          *buffer++ = (frac_part / 10) + '0';
+          *buffer++ = (frac_part % 10 ) + '0';
+
+          return buffer;
       }
 
-      
+      char* write_UserOrder(const UserOrder &order, char *buffer)
+      {
+        buffer = write_string("user order Arrived_cycle count : ", buffer);
+        *buffer++ = '\n';
+        buffer = convert_u64_to_str(order.arrived_cycle_count, buffer);
+        buffer = write_string("UserOrder id ", buffer);
+        buffer = convert_u64_to_str(order.order_id, buffer);
+        *buffer++ = '\n';
+        buffer = write_string("Trade id ", buffer);
+        buffer = convert_u64_to_str(order.trader_id, buffer);
+        *buffer++ = '\n';
+        buffer = write_string("req_type ", buffer);
+        *buffer = order.req_type;
+        buffer = write_string("price ", buffer);
+        buffer = float_to_char(order.price, buffer);
+        *buffer++ = '\n';
+        buffer = write_string("quantity", buffer);
+        buffer = convert_u64_to_str(order.quantity, buffer);
+        *buffer++ = '\n';
+        buffer = write_string("out cycle count ", buffer);
+        buffer = convert_u64_to_str(order.out_cycle_count, buffer);
+        *buffer++ = '\n';
+        return buffer;
+      }
+
+      char* write_LOBOrder(const LOBOrder &lobOrder, char *buffer) {
+        buffer = write_string("arrival_cycle_count", buffer);
+        *buffer++ = '\n';
+        buffer = convert_u64_to_str(lobOrder.arrival_cycle_count, buffer);
+        *buffer++ = '\n';
+        buffer = write_string("LOB System_id", buffer);
+        *buffer++ = '\n';
+        buffer = convert_u64_to_str(lobOrder.system_id, buffer);
+        *buffer++ = '\n';
+        buffer = write_string("LOB price ", buffer);
+        *buffer++ = '\n';
+        buffer = float_to_char (lobOrder.price, buffer);
+        *buffer++ = '\n';
+        buffer = write_string("LOB quantity", buffer);
+        *buffer++ = '\n';
+        buffer = convert_u64_to_str(lobOrder.quantity, buffer);
+        *buffer++ = '\n';
+        buffer = write_string("lob ordertype ", buffer);
+        *buffer++ = '\n';
+        *buffer++ = lobOrder.order_type;
+        buffer = write_string("lob req_type", buffer);
+        *buffer++ = '\n';
+        *buffer++ = lobOrder.req_type;
+        *buffer++ = '\n';
+        buffer = write_string("lob trade id ",buffer);
+        *buffer++ = '\n';
+        buffer = convert_u64_to_str(lobOrder.trade_id, buffer);
+        *buffer++ = '\n';
+        buffer = write_string("Out of Cycle ", buffer);
+        *buffer++ = '\n';
+        buffer = convert_u64_to_str(lobOrder.out_cycle_count, buffer);
+        *buffer++ = '\n';     
+        return buffer; 
+      }
+
+      char* write_lobAck (const LOBAck &lback, char* buffer) {
+        buffer = write_string("System id", buffer);
+        *buffer++= '\n';
+        buffer = convert_u64_to_str(lback.system_id, buffer);
+        *buffer ++ = '\n';
+        buffer = write_string("Price ",buffer);
+        *buffer++ = '\n';
+        buffer = float_to_char(lback.price, buffer);
+        *buffer ++ = '\n';
+        buffer = write_string("Quantity ",buffer);
+        *buffer++ = '\n';
+        buffer =  convert_u64_to_str(lback.quantity, buffer);
+        *buffer++ = '\n';
+        buffer = write_string("side ",buffer);
+        *buffer++ = '\n';
+        *buffer++ = lback.side;
+        *buffer++ = '\n';
+        buffer = write_string("Status ",buffer);
+        *buffer++ = '\n';
+        *buffer++ = lback.status;
+        *buffer++ = '\n';
+        return buffer;
+      }
+
+      char* write_UsrAck (const UserAck& usrAck, char* buffer) {
+        buffer = write_string("Order id", buffer);
+        *buffer++= '\n';
+        buffer = convert_u64_to_str(usrAck.order_id, buffer);
+        *buffer ++ = '\n';
+        buffer = write_string("Price ",buffer);
+        *buffer++ = '\n';
+        buffer = float_to_char(usrAck.price, buffer);
+        *buffer ++ = '\n';
+        buffer = write_string("Quantity ",buffer);
+        *buffer++ = '\n';
+        buffer =  convert_u64_to_str(usrAck.quantity, buffer);
+        *buffer++ = '\n';
+        buffer = write_string("side ", buffer);
+        *buffer++ = '\n';
+        *buffer++ = usrAck.side;
+        *buffer++ = '\n';
+        buffer = write_string("Status ",buffer);
+        *buffer++ = '\n';
+        *buffer++ = usrAck.status;
+        *buffer++ = '\n';
+        return buffer;
+      }
+
       bool drainBatch(Common::LFQueue<internal_lib::LogElement>* q, std::ofstream& file, int limit) noexcept {
         
         // define a 4kb stack buffer to store value of LogElement we can store at most limit amout of logs   
@@ -151,24 +261,67 @@ namespace internal_lib {
           if (!elem) break; // nothing to put in buffer 
          
           offset = convert_u64_to_str(elem->log_id, offset);
-          *offset++ = ' ';
+          *offset++ = ' ';  
           offset = convert_u64_to_str(elem->timestamp, offset);
           *offset++ = ' ';
            
           switch (elem->log_data.index()) {  // elem->log_data.index() give the index of at which value is stored  0 -> oder 1 -> match 2 -> broadcast
 
             case 1:
-            offset = write_userOrder((std::get<internal_lib::order>(elem->log_data)).order_id, offset);
-            *offset++ = ' ';
-            break;
-            case 1:
-            offset = convert_u64_to_str((std::get<internal_lib::match>(elem->log_data)).match_id, offset);
+            offset = write_UserOrder(std::get<internal_lib::UserOrder>(elem->log_data) , buffer);  
+  // we have identifier arriving at Order Gateway = 1 log UserOrder
+  // we have identifier from orderGateway to Matching engine = 2  log Data = LOBOrder
+  // we have arrived at matcing engine  idetifier no = 3  log data = LOBOrder
+  // order aggrive match identifier no = 4 log data = LOBOrder
+  // order created in LOB identifier  = 5  log Data = loborder
+  // order Deleted in LOB id = 6 log = ""
+  // order quantity update id  = 7  loborder
+  // we will not log price change as it is deleting order and creating it 
+  // matching engine ack id = 8  log = loback
+  // order Gateway Received an ack id = 9 log data loback
+  // order Gateway send an ack to sniper/alpha id = 10 userack
             *offset++ = ' ';
             break;
             case 2:
-            offset = convert_u64_to_str((std::get<internal_lib::broadcast>(elem->log_data).broadcast_id), offset); // convert the integer to characters and store to the buffer
+            offset = write_LOBOrder(std::get<internal_lib::LOBOrder>(elem->log_data), buffer);
             *offset++ = ' ';
+            break;
+            case 3:
+            offset = write_LOBOrder(std::get<internal_lib::LOBOrder>(elem->log_data), buffer); 
+            *offset++ = ' ';
+            break;
+            case 4:
+            offset = write_LOBOrder(std::get<internal_lib::LOBOrder>(elem->log_data),buffer); 
+            *offset++ = ' ';
+            break;
+            case 5:
+            offset =write_LOBOrder(std::get<internal_lib::LOBOrder>(elem->log_data),buffer); 
+            *offset++ = ' ';
+            break;
+            case 6:
+						// Order Deleted In LOB ====> Identifier = 6 ====> Log Data = LOBOrder
+						offset = write_LOBOrder(std::get<LOBOrder>(elem->log_data), offset);
+                 		break;
 
+					case 7:
+						// Order Quantity Update in LOB ====> Identifier = 7 ====> Log Data = LOBOrder
+						offset = write_LOBOrder(std::get<LOBOrder>(elem->log_data), offset);
+                 		break;
+
+					case 8:
+						// Matching Engine Passed An Acknowledgement To Order Gateway====> Identifier = 8 ======> Log Data = LOBAcknowledgement
+						offset = write_lobAck(std::get<LOBAck>(elem->log_data), offset);
+                 		break;
+
+					case 9:
+						// Order Gateway Received An Acknowledgement ====> Identifier = 9 =====> Log Data = LOBAcknowledgement
+						offset = write_lobAck(std::get<LOBAck>(elem->log_data), offset);
+                 		break;
+
+					case 10:
+						// Order Gateway Sends An Acknowledgement To Sniper/Alpha ====> Identifier = 10 =====> Log Data = UserAcknowledgement
+						offset = write_UsrAck(std::get<UserAck>(elem->log_data), offset);
+            break;
           }
 
           *offset++ = '\n'; // add new line
@@ -184,6 +337,5 @@ namespace internal_lib {
 
         return count > 0; // means something is read from the queue so return true 
     } 
-  
   };
 };
