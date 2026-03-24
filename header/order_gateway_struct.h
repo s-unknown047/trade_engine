@@ -25,8 +25,8 @@ namespace internal_lib
         float price;
 
         // 8 byte
-        int quantity;
-        short int trade_id; // 2 byte id for traders 100 total users 99 market participants and 1 sniper
+        uint32_t quantity;
+        uint8_t trade_id; // 2 byte id for traders 100 total users 99 market participants and 1 sniper
         char order_type;    // b = buy and s = sell
         char req_type;      // c - create u - update d - delete
 
@@ -36,10 +36,10 @@ namespace internal_lib
 
     struct LOBAck
     {   // 4
-        int system_id;
+        uint32_t system_id;
         // 8
         float price;  //
-        int quantity; // trade quntity (if match) or remaining qty (if updated/new order)
+        uint32_t quantity; // trade quntity (if match) or remaining qty (if updated/new order)
        
         // 2
         char side;   // B or S
@@ -74,17 +74,17 @@ namespace internal_lib
     struct UserAck
     {
         // 4 byte
-        int order_id;
+        uint32_t order_id;
         
         // 8 byte
         float price;
-        int quantity;
+        uint32_t quantity;
 
         // 2 byte
         char side;
         char status;
 
         // usable data 14
-        short int pad;
+        uint8_t pad;
     };
 };
