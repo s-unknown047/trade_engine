@@ -11,7 +11,7 @@
 #include "macros.h"
 #include "order_gateway_struct.h"
 
-#define LIMIT 50
+#define LIMIT 100
 
 namespace internal_lib {
 
@@ -35,9 +35,9 @@ namespace internal_lib {
   // order Gateway send an ack to sniper/alpha id = 10 userack
   
 
-  
+  // final keyword represents this class can not be derived thus reduce overheads
   class Async_Logger final {
-
+  
     private:
       Common::LFQueue<internal_lib::LogElement>* matching_engine_queue;
       Common::LFQueue<internal_lib::LogElement>* order_gateway_queue;
@@ -58,34 +58,23 @@ namespace internal_lib {
     void run() noexcept {
       std::ofstream file(file_name_, std::ios::out | std::ios::trunc);
 
-      ASSERT(file.is_open(), "File not accessible");
-  
-      std::vector<char> buff(128*1024); // 128 kb
-
-      // buff.data() give a pointer to the start of the buffer
-
-
-      // set the buffer for the file stream 
-      // file have its own buffer but of 4kb or 8kb 
-      // so we define our own buffer of 128 kb
-      // when the buffer get full uses system call to write the whole bufffer to the file
-      // so we have increase the size thus reduce the number of system call required and thus reduce number of context switching required thus
-      // reduce overheads 
-
-      file.rdbuf()->pubsetbuf(buff.data(),buff.size());
-  
-
-      while (running) {
-        
-        bool busy = false;
-
-        busy |= drainBatch(matching_engine_queue, file, LIMIT);
-        busy |= drainBatch(order_gateway_queue, file, LIMIT);
-        
-        if (busy == false) std::this_thread::yield();
+      if (!file.is_open()) {
+          std::cerr << "Failed to open log file: " << file_name_ << std::endl;
+          return;
       }
 
-      file.flush();
+      std::vector<char> buff(128 * 1024); // 128 KB
+      file.rdbuf()->pubsetbuf(buff.data(), buff.size());
+
+      while (running) {
+          bool busy = false;
+      
+          // busy |= drainBatch(matching_engine_queue, file, LIMIT);
+          busy |= drainBatch(order_gateway_queue, file, LIMIT);
+          
+          if (busy == false) std::this_thread::yield();
+      }
+
     }
 
       char* convert_u64_to_str(uint64_t value, char* buffer) noexcept {
@@ -137,6 +126,8 @@ namespace internal_lib {
 
       char* write_UserOrder(const UserOrder &order, char *buffer)
       {
+
+        std::cout<<" persisted : "<< order.order_id <<"\n";
         buffer = write_string("user order Arrived_cycle count : ", buffer);
         *buffer++ = '\n';
         buffer = convert_u64_to_str(order.arrived_cycle_count, buffer);
@@ -260,6 +251,7 @@ namespace internal_lib {
           internal_lib::LogElement* elem = q->getNextToRead();
           if (!elem) break; // nothing to put in buffer 
          
+          std::cout<<" received " <<elem->log_id<<"\n";
           offset = convert_u64_to_str(elem->log_id, offset);
           *offset++ = ' ';  
           offset = convert_u64_to_str(elem->timestamp, offset);
@@ -268,7 +260,7 @@ namespace internal_lib {
           switch (elem->log_data.index()) {  // elem->log_data.index() give the index of at which value is stored  0 -> oder 1 -> match 2 -> broadcast
 
             case 1:
-            offset = write_UserOrder(std::get<internal_lib::UserOrder>(elem->log_data) , buffer);  
+            offset = write_UserOrder(std::get<internal_lib::UserOrder>(elem->log_data) , offset);  
   // we have identifier arriving at Order Gateway = 1 log UserOrder
   // we have identifier from orderGateway to Matching engine = 2  log Data = LOBOrder
   // we have arrived at matcing engine  idetifier no = 3  log data = LOBOrder
@@ -333,7 +325,7 @@ namespace internal_lib {
         // what are the two ways this program will end 
         // offset > buffer means buffer is no empty and offset - buffer is the size of buffer 
         // then write it into the 128kb buffer 
-        if (offset > buffer) file.write(buffer, offset - buffer);
+        if (offset > buffer) file.write(buffer, offset-buffer);
 
         return count > 0; // means something is read from the queue so return true 
     } 

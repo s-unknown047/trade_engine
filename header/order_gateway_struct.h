@@ -79,7 +79,6 @@ namespace internal_lib
         // 8 byte
         float price;
         uint32_t quantity;
-
         // 2 byte
         char side;
         char status;

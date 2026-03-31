@@ -15,13 +15,14 @@ namespace common
             T object_;
             bool is_free = true;
         };
-        std::vector<ObjectBlock> store_; // the actual storage for the memory pool
+        std::vector<ObjectB4lock> store_; // the actual storage for the memory pool
         std::vector<size_t> free_index_;
 
         size_t high_ind = 0;
         size_t capacity;
         size_t next_free_index_ = 0;
-
+    
+        // inline 
     public:
         MemPool() = delete; // We do this so that these methods are not accidentally called without our knowledge
         MemPool(const MemPool &) = delete;

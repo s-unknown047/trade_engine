@@ -25,14 +25,19 @@ namespace Common {
 //  Args &&...args are the arguments to be passed to the function when it is called
 
 template <typename T, typename... Args>
-inline auto createAndStartThread(int core_id, const std::string &name,T &&func, Args &&...args) noexcept
+inline std::thread* createAndStartThread(int core_id, const std::string &name, T &&func, Args &&...args) noexcept
 {
 
     std::cout<< "Thread core_id " << core_id << std::endl;
 
-    std::atomic<bool> running(false), failed(false); // Use std::atomic
-    auto thread_body = [&]
-    {    
+
+    std::atomic<bool> running(false), failed(false); 
+    auto thread_body = [&] ()
+    {     
+
+
+        std::cout<<"i am inside"<<std::endl;
+
         if (core_id >= 0 && !Common::setThreadCore(core_id))
         {
             std::cerr << "Failed to set affinity core to " << name << " for thread " << pthread_self() << " " << core_id << std::endl;
@@ -43,22 +48,28 @@ inline auto createAndStartThread(int core_id, const std::string &name,T &&func, 
         std::cout << "set core aaffinity for " << name << " " << pthread_self() << " to " << core_id << std::endl;
 
         running = true;
-        func(args...); // Use std::forward
+      
+        std::forward<T>(func)(std::forward<Args>(args)...);
+
     };
 
-    auto t = new std::thread(thread_body);
+     
+    
 
-    while(!running && !failed) {
-    using namespace std::literals::chrono_literals;
-    std::this_thread::yield();
-    }
+   
+        auto t = new std::thread(thread_body);
 
-    if (failed) {
-        t->join();
+        while (!running && !failed) {
+            using namespace std::literals::chrono_literals;
+            std::this_thread::yield();
+        }
 
-        delete t;
-        t = nullptr;
-    }
+        if (failed) {
+            std::cerr << "Thread failed to start for: " << name << std::endl;
+            t->join();
+            delete t;
+            t = nullptr;
+        }
 
-    return t;
+        return t;
 }
