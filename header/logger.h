@@ -257,21 +257,10 @@ namespace internal_lib {
           offset = convert_u64_to_str(elem->timestamp, offset);
           *offset++ = ' ';
            
-          switch (elem->log_data.index()) {  // elem->log_data.index() give the index of at which value is stored  0 -> oder 1 -> match 2 -> broadcast
+          switch (elem->log_id) {  // elem->log_data.index() give the index of at which value is stored  0 -> oder 1 -> match 2 -> broadcast
 
             case 1:
             offset = write_UserOrder(std::get<internal_lib::UserOrder>(elem->log_data) , offset);  
-  // we have identifier arriving at Order Gateway = 1 log UserOrder
-  // we have identifier from orderGateway to Matching engine = 2  log Data = LOBOrder
-  // we have arrived at matcing engine  idetifier no = 3  log data = LOBOrder
-  // order aggrive match identifier no = 4 log data = LOBOrder
-  // order created in LOB identifier  = 5  log Data = loborder
-  // order Deleted in LOB id = 6 log = ""
-  // order quantity update id  = 7  loborder
-  // we will not log price change as it is deleting order and creating it 
-  // matching engine ack id = 8  log = loback
-  // order Gateway Received an ack id = 9 log data loback
-  // order Gateway send an ack to sniper/alpha id = 10 userack
             *offset++ = ' ';
             break;
             case 2:

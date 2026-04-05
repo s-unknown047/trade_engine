@@ -1,0 +1,4 @@
+cmake_minimum_required(VERSION 3.10)
+
+project(TradeEngine)
+add_executable(tradeEngine main.cpp)
