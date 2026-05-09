@@ -86,4 +86,13 @@ namespace internal_lib
         // usable data 14
         uint8_t pad;
     };
+
+    struct BroadCast 
+    {
+        uint32_t system_id;  
+        float price; // 
+        uint32_t quantity;  // Trade Price
+        char side;   // 'B'uy and 'S'ell
+        char type;   // 'A'dd, 'U'pdate, 'D'elete, 'T'rade
+    };
 };
