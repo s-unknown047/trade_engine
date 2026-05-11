@@ -107,6 +107,12 @@ means it can reorder as it want most efficient and performance but can have diff
 
 
 Acquire/Release: 
+
+acquire is get the update of what is the state of that variable from memory 
+release is after performing store it tells to the memory about the changes it made it publishes it 
+when a atomic varible use load with aquire get the updated value of the the variable
+
+
 Acquire: When you perform a load with memory_order_acquire, you are telling the system:
 
     The Barrier: No memory reads or writes that appear after this load in the code can be reordered to happen before it.
