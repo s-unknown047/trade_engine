@@ -5,8 +5,7 @@
 #include "../header/order_gateway_struct.h"
 #include "../header/logger.h"   
 #include <unordered_map>
-#define LIKELY(x) __builtin_expect(!!(x), 1)
-#define UNLIKELY(x) __builtin_expect(!!(x), 1)
+
 
 namespace internal_lib {
     
@@ -50,7 +49,7 @@ namespace internal_lib {
         //  }
 
     public: 
-        OrderGateway( Common::LFQueue<internal_lib::LOBOrder>* laq,
+        OrderGateway(Common::LFQueue<internal_lib::LOBOrder>* laq,
         Common::LFQueue<internal_lib::LOBAck>* LOBAck,
         Common::LFQueue<internal_lib::UserOrder>* uo,
         Common::LFQueue<internal_lib::UserAck>* uack,
@@ -144,15 +143,15 @@ namespace internal_lib {
                     }
                 }
 
-                UserOrder* readOrder = MMorderQueue->getNextToRead();
+                UserOrder* MMreadOrder = MMorderQueue->getNextToRead();
 
                 
-                if (LIKELY(readOrder != nullptr)) {
+                if (LIKELY(MMreadOrder != nullptr)) {
                     LogElement* log = Logger->getNextToWriteTo();
                     if (LIKELY(log != nullptr)) {
                         log->log_id = 1;
                         log->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-                        log->log_data = *readOrder;
+                        log->log_data = *MMreadOrder;
                         Logger->updateReadIndex();
                     }
                     
@@ -160,14 +159,14 @@ namespace internal_lib {
 
                     if (LIKELY(write != nullptr)) {
 
-                        write->arrival_cycle_count = readOrder->arrived_cycle_count;
-                        write->system_id = AssignSystemId(readOrder->order_id);
-                        write->order_type = readOrder->order_type;
-                        write->price = readOrder->price;
-                        write->quantity = readOrder->quantity;
-                        write->trade_id = readOrder->trader_id;     
-                        write->req_type = readOrder->req_type;
-                        write->out_cycle_count = readOrder->out_cycle_count;
+                        write->arrival_cycle_count = MMreadOrder->arrived_cycle_count;
+                        write->system_id = AssignSystemId(MMreadOrder->order_id);
+                        write->order_type = MMreadOrder->order_type;
+                        write->price = MMreadOrder->price;
+                        write->quantity = MMreadOrder->quantity;
+                        write->trade_id = MMreadOrder->trader_id;     
+                        write->req_type = MMreadOrder->req_type;
+                        write->out_cycle_count = MMreadOrder->out_cycle_count;
                         
                         // order is sent from order Gateway to Matching Engine
                         LogElement* log = Logger->getNextToWriteTo();

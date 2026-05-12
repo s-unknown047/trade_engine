@@ -3,9 +3,6 @@
 #include "../header/order_gateway_struct.h"
 #include "../header/logger.h"
 
-#define LIKELY(x) __builtin_expect(!!(x), 1)
-#define UNLIKELY(x) __builtin_expect(!!(x), 0)
-
 namespace internal_lib
 {
     class MatchingEngine
@@ -26,22 +23,22 @@ namespace internal_lib
             size_t max_price_ticks,
             size_t max_entries_per_price,
             Common::LFQueue<internal_lib::LOBOrder> *req_order) : LobOrderQueue(req_order), BuyOrderBook(max_price_ticks, max_entries_per_price), SellOrderBook(max_price_ticks, max_entries_per_price)
-        {
-        }
+        {}
 
         void matchingEngine(std::atomic<bool> &start_Engine, std::atomic<bool> &terminate_engine)
         {
 
             while (!start_Engine.load(std::memory_order_acquire))
             {
-                if (terminate_engine.load(std::memory_order_acquire))
-                    return;
+                if (terminate_engine.load(std::memory_order_acquire)) return;
             }
 
             while (!terminate_engine.load(std::memory_order_acquire))
             {
                 readOrder();
             }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(3));
         }
 
         void readOrder() noexcept
@@ -52,8 +49,6 @@ namespace internal_lib
             {
                 return;
             }
-
-            uint64_t arrived_at_lob;
 
             auto write_log = matchLog->getNextToWriteTo();
 
@@ -88,7 +83,7 @@ namespace internal_lib
         uint64_t create_order(LOBOrder &order, bool is_buy)  noexcept
         {
             aggresiveMatch(order, is_buy);
-
+            
             if (order.quantity > 0)
             {
                 if (is_buy)
@@ -113,11 +108,13 @@ namespace internal_lib
                     Ack(order, static_cast<size_t>(order.price * 10), 'N', order.quantity);
                 }
             }
-
-            return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+            
+            uint64_t time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+            return time;
         }
 
-        void updateOrder (LOBOrder &order, bool is_buy) noexcept {
+        uint64_t updateOrder (LOBOrder &order, bool is_buy) noexcept {
+            uint64_t done_time = 0;
             LOBOrder* previous_entry;
             if (is_buy) {
                 previous_entry = BuyOrderBook.peekOrder(order.system_id);
@@ -126,7 +123,7 @@ namespace internal_lib
             }
 
             if (UNLIKELY(previous_entry == nullptr)) {
-                return;
+                return 0;
             }
 
             bool quantity_change = order.quantity != previous_entry->quantity ? true : false; 
@@ -139,7 +136,6 @@ namespace internal_lib
             }
             else if (quantity_change)
             {
-
                 if (is_buy)
                 {
                     BuyOrderBook.UpdateOrderQuantity(order);
@@ -167,9 +163,13 @@ namespace internal_lib
                     Ack(order, static_cast<size_t>(order.price * 10), 'U', order.quantity);
                 }
             }
+            
+            done_time =  std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+            return done_time;
         }
 
-        void deleteOrder(LOBOrder &order, bool is_buy) {
+        uint64_t deleteOrder(LOBOrder &order, bool is_buy) {
+
             if (is_buy) {
                 BuyOrderBook.deleteOrder(order.system_id);     
             } else {
@@ -191,7 +191,11 @@ namespace internal_lib
             if (order.trade_id == 1) {
                 Ack(order, static_cast<size_t>(order.price * 10), 'D', order.quantity);
             }
-        }
+            
+            uint64_t time =  std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+            return time;
+
+        }   
         
         void changeInQuantity(uint32_t system_id, float price, uint32_t quantity, char req_type, char order_type) noexcept
         {

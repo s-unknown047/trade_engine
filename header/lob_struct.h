@@ -57,7 +57,7 @@ namespace internal_lib
             if (isBuy)
                 best_price = 0;
             else
-                best_price = max_price;
+                best_price = max_price;     
         }
 
         internal_lib::LOBOrder *peekOrder(uint32_t systemid)
