@@ -28,7 +28,7 @@ namespace internal_lib
 
         void AlphaRun(std::atomic<bool> &start, std::atomic<bool> &terminate) noexcept
         {
-
+            std::cout << "this is Alpha Server " << std::endl;
             int num_orders = 1;
             // filling
             for (int i = 0; i < num_orders; ++i)

@@ -27,7 +27,7 @@ namespace internal_lib
 
         void matchingEngine(std::atomic<bool> &start_Engine, std::atomic<bool> &terminate_engine)
         {
-
+            std::cout << "this is the matching engine" << std::endl; 
             while (!start_Engine.load(std::memory_order_acquire))
             {
                 if (terminate_engine.load(std::memory_order_acquire)) return;

@@ -79,6 +79,8 @@ namespace internal_lib {
         void run (std::atomic<bool>& start_order_gateway,
         std::atomic<bool>& terminate_order_gateway) noexcept {
 
+            std::cout << "this is order Gateway " << std::endl;
+
             // it means we are getting the value of start_order_gateway with memomry 
             // odering of acquire/release which means that no memory read and write after this
             // can be reordered  

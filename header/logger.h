@@ -56,6 +56,7 @@ namespace internal_lib {
     }
 
     void run() noexcept {
+      std::cout << "logger,h" << std::endl;
       std::ofstream file(file_name_, std::ios::out | std::ios::trunc);
 
       if (!file.is_open()) {
@@ -68,7 +69,8 @@ namespace internal_lib {
 
       while (running) {
           bool busy = false;
-      
+                std::cout << "logger,h" << std::endl;
+
           // busy |= drainBatch(matching_engine_queue, file, LIMIT);
           busy |= drainBatch(order_gateway_queue, file, LIMIT);
           

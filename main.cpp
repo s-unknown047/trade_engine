@@ -72,7 +72,7 @@ int main () {
         logger.run();
     });
     
-    std::cout << "I am in main nigga" << std::endl;
+    std::cout << "I am in main " << std::endl;
     start_matchingEngine.store(true, std::memory_order_release);
     start_orderGateway.store(true, std::memory_order_release);
     start_aplha_server.store(true, std::memory_order_release);
@@ -81,7 +81,7 @@ int main () {
 
     // stop now
     // wait for 5 second  
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    // std::this_thread::sleep_for(std::chrono::seconds(5));
 
     std::cout << "this is try" << std::endl;
   
