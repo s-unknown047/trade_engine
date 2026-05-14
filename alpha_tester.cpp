@@ -44,7 +44,7 @@ namespace internal_lib
                 order.quantity = (rand() % 100) + 1;              // 1-100 lots
                 order.trader_id = 1;                              // sniper trader
                 order.arrived_cycle_count = 0;
-                order.out_cycle_count = 0;
+                // order.out_cycle_count = 0;
                 TestStore.push_back(order);
             }
 
@@ -54,41 +54,54 @@ namespace internal_lib
                     return;
             }
 
-            for (int i = 0; i < TestStore.size(); i++)
-                run(i);
-        };
+            std::cout << "at run" << std:: endl;
+
+           for (int i = 0 ; i < TestStore.size() && !terminate.load(std::memory_order_acquire); i++) {
+					run(i);
+				}
+}
 
         void run(int &i) noexcept
         {
-            internal_lib::UserOrder *order = AlphaOrderQueue->getNextToWriteTo();
+            std::cout<<"inside run \n ";
 
-            while (order != nullptr)
-            {
+            std::cout << " Alppha order " << AlphaOrderQueue << std::endl;
+            internal_lib::UserOrder *order = AlphaOrderQueue->getNextToWriteTo();
+            std::cout << "Order " << order << std::endl;
+            while (order == nullptr)
+            {   
+                std::cout << "in loop \n"; 
                 std::this_thread::yield();
                 order = AlphaOrderQueue->getNextToWriteTo();
             }
 
+            std::cout << "i am here 1\n";;
+
             *order = TestStore[i];
 
             AlphaOrderQueue->updateWriteIndex();
+             std::cout << "i am here 1\n";;
 
-            internal_lib::BroadCast *cast = BroadCast->getNextToRead();
+            // internal_lib::BroadCast *cast = BroadCast->getNextToRead();
 
-            if (cast == nullptr)
-            {
-                cast = BroadCast->getNextToRead();
-            }
+            // while (cast == nullptr)
+            // {
+            //     std::this_thread::sleep_for(std::chrono::milliseconds(3));
+            //     cast = BroadCast->getNextToRead();
+            // }
+            //  std::cout << "i am here 2\n";
 
-            std::cout << "this is broadcast " << cast->system_id << std::endl;
+            // std::cout << "this is broadcast " << cast->system_id << std::endl;
+            //  std::cout << "i am here 2\n";
 
-            internal_lib::UserAck *ack = userAck->getNextToRead();
+            // internal_lib::UserAck *ack = userAck->getNextToRead();
 
-            if (ack == nullptr)
-            {
-                ack = userAck->getNextToRead();
-            }
+            // if (ack == nullptr)
+            // {
+            //     ack = userAck->getNextToRead();
+            // }
 
-            std::cout << "this is User Ack " << ack->order_id << std::endl;
+            // std::cout << "this is User Ack " << ack->order_id << std::endl;
         }
     };
 };

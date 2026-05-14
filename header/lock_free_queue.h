@@ -8,7 +8,7 @@
 
 namespace Common
 {
-    template <typename T>
+    template <typename T> 
     class LFQueue 
     {
     private:

@@ -16,24 +16,24 @@
 
 int main () {
 
-    Common::LFQueue<internal_lib::UserOrder>* sniperOrder;
-    Common::LFQueue<internal_lib ::UserAck>* sniperAck;
-    Common::LFQueue<internal_lib::LOBOrder>* lob;
-    Common::LFQueue<internal_lib::LOBAck>* lobAck;
-    Common::LFQueue<internal_lib::BroadCast>* broadCast;
-    Common::LFQueue<internal_lib::LogElement>* match_to_log;
-    Common::LFQueue<internal_lib::LogElement>* Order_Gateway_to_Logger;
-    Common::LFQueue<internal_lib::UserOrder>* marketMaker; 
+    Common::LFQueue<internal_lib::UserOrder> sniperOrder(10000);
+    Common::LFQueue<internal_lib ::UserAck> sniperAck(10000);
+    Common::LFQueue<internal_lib::LOBOrder> lob(10000);
+    Common::LFQueue<internal_lib::LOBAck> lobAck(10000);
+    Common::LFQueue<internal_lib::BroadCast> broadCast(10000);
+    Common::LFQueue<internal_lib::LogElement> match_to_log(10000);
+    Common::LFQueue<internal_lib::LogElement> Order_Gateway_to_Logger(1000);
+    Common::LFQueue<internal_lib::UserOrder> marketMaker(10000); 
     size_t max_price = static_cast<size_t>(max_price_tick);
     size_t max_entries = static_cast<size_t>(max_entries_per_price);
     
     
-    internal_lib::MatchingEngine matchEngine(max_price, max_entries, lob);
-    internal_lib::OrderGateway orderGateway(lob, lobAck, sniperOrder, sniperAck,Order_Gateway_to_Logger, marketMaker );
+    internal_lib::MatchingEngine matchEngine(max_price, max_entries, &lob);
+    internal_lib::OrderGateway orderGateway(&lob, &lobAck, &sniperOrder, &sniperAck, &Order_Gateway_to_Logger, &marketMaker );
     
     std::string file_name = static_cast<std::string>(file_path);
-    internal_lib::Async_Logger logger(file_name, match_to_log, Order_Gateway_to_Logger);
-    internal_lib::AlphaServer alphaServer(sniperOrder, sniperAck, broadCast);
+    internal_lib::Async_Logger logger(file_name, &match_to_log, &Order_Gateway_to_Logger);
+    internal_lib::AlphaServer alphaServer(&sniperOrder, &sniperAck, &broadCast);
 
     std::atomic<bool> start_aplha_server;
     start_aplha_server.store(false, std::memory_order_release);
@@ -81,7 +81,7 @@ int main () {
 
     // stop now
     // wait for 5 second  
-    // std::this_thread::sleep_for(std::chrono::seconds(5));
+    std::this_thread::sleep_for(std::chrono::seconds(5));
 
     std::cout << "this is try" << std::endl;
   

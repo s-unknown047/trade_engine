@@ -69,11 +69,11 @@ namespace internal_lib {
 
       while (running) {
           bool busy = false;
-                std::cout << "logger,h" << std::endl;
+                std::cout << "logger,h 1" << std::endl;
 
-          // busy |= drainBatch(matching_engine_queue, file, LIMIT);
+          busy |= drainBatch(matching_engine_queue, file, LIMIT);
           busy |= drainBatch(order_gateway_queue, file, LIMIT);
-          
+          std::cout<< "is this working";
           if (busy == false) std::this_thread::yield();
       }
 
@@ -239,6 +239,7 @@ namespace internal_lib {
       bool drainBatch(Common::LFQueue<internal_lib::LogElement>* q, std::ofstream& file, int limit) noexcept {
         
         // define a 4kb stack buffer to store value of LogElement we can store at most limit amout of logs   
+        std::cout<< "in drain batch \n"; 
         char buffer[4096];
         // start of buffer
         char* offset = buffer;
