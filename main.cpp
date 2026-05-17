@@ -28,7 +28,7 @@ int main () {
     size_t max_entries = static_cast<size_t>(max_entries_per_price);
     
     
-    internal_lib::MatchingEngine matchEngine(max_price, max_entries, &lob);
+    internal_lib::MatchingEngine matchEngine(max_price, max_entries, &lobAck ,&lob, &broadCast, &match_to_log);
     internal_lib::OrderGateway orderGateway(&lob, &lobAck, &sniperOrder, &sniperAck, &Order_Gateway_to_Logger, &marketMaker );
     
     std::string file_name = static_cast<std::string>(file_path);
@@ -52,7 +52,7 @@ int main () {
     // thread creation 
 
     auto matching_engine_thread = Common::createAndStartThread(1, "Matching Engine", [&]() {
-        matchEngine.matchingEngine(start_aplha_server, terminate_alpha_server);
+        matchEngine.matchingEngine(start_matchingEngine, terminate_matchingEngine);
     });    
 
     auto orderGateway_thread = Common::createAndStartThread(2, "Order Gateway", [&]() {
@@ -63,7 +63,7 @@ int main () {
         alphaServer.AlphaRun(start_aplha_server, terminate_alpha_server);
     });
 
-
+    
     // internal_lib::prewarm(50);
 
     std::this_thread::sleep_for(std::chrono::seconds(3));
@@ -77,22 +77,30 @@ int main () {
     start_orderGateway.store(true, std::memory_order_release);
     start_aplha_server.store(true, std::memory_order_release);
     
-    std::cout << "this is try" << std::endl;
+    std::cout << "this is try before time" << std::endl;
 
     // stop now
     // wait for 5 second  
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    std::this_thread::sleep_for(std::chrono::seconds(3));
 
     std::cout << "this is try" << std::endl;
   
     terminate_matchingEngine.store(true, std::memory_order_release);
     terminate_orderGateway.store(true, std::memory_order_release);
     terminate_alpha_server.store(true, std::memory_order_release);
-    std::cout << "this is try" << std::endl;
-
-    matching_engine_thread->join();
-    orderGateway_thread->join();
+    std::cout << "this is last try" << std::endl;
+    
     alphaServer_thread->join();
+    std::cout << "this is last try 1" << std::endl;
+
+   
+    orderGateway_thread->join();
+        std::cout << "this is last try 2" << std::endl;
+
+     matching_engine_thread->join();
+            std::cout << "this is last try 2" << std::endl;
+
+     
 
     delete matching_engine_thread;
     delete orderGateway_thread;

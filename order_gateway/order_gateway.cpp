@@ -79,7 +79,6 @@ namespace internal_lib {
         void run (std::atomic<bool>& start_order_gateway,
         std::atomic<bool>& terminate_order_gateway) noexcept {
 
-            std::cout << "this is order Gateway " << std::endl;
 
             // it means we are getting the value of start_order_gateway with memomry 
             // odering of acquire/release which means that no memory read and write after this
@@ -90,11 +89,14 @@ namespace internal_lib {
             }
 
             while (!terminate_order_gateway.load(std::memory_order_acquire)){
-               // order received at order Gateway from Sniper               
+               // order received at order Gateway from Sniper       
                 UserOrder* readOrder = SniperOrderQueue->getNextToRead();
 
+
+               
+
                 if (LIKELY(readOrder != nullptr)) {
-                    
+
                     uint64_t arrival_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
                     
 
@@ -107,6 +109,7 @@ namespace internal_lib {
                         Logger->updateWriteIndex();
                     }
                     
+                    // std::cout<< "log id " << write_log->log_id << std::endl;
                     int sys_id = AssignSystemId(readOrder->order_id);
 
                     uint64_t  end_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
@@ -116,9 +119,12 @@ namespace internal_lib {
                     // creating LOBOrder* request for the SniperOder (userOrder)
                     
                     internal_lib::LOBOrder* write =  LobOrderQueue->getNextToWriteTo();
-
+                    
+                    
+                    //    std::cout <<"in Sam inside hell"<< std::endl;
+ 
                     if (LIKELY(write != nullptr)) {
-
+                        //   std::cout <<"in am inside hell"<< std::endl;
                         write->arrival_cycle_count = readOrder->arrived_cycle_count;
                         write->system_id = sys_id;
                         write->order_type = readOrder->order_type;
@@ -128,19 +134,20 @@ namespace internal_lib {
                         write->req_type = readOrder->req_type;
                         write->out_cycle_count = readOrder->out_cycle_count; 
 
+                        LobOrderQueue->updateWriteIndex();
+
+                        // std::cout << "lb" << write->system_id <<std::endl;
+
                         auto lobLog = Logger->getNextToWriteTo();
 
-                        if (LIKELY(write !=  nullptr)) {
-                            
+                        if (LIKELY(lobLog !=  nullptr) ) {
                             lobLog->log_id = 2;
                             lobLog->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
                             lobLog->log_data = *write;
-
                             Logger->updateWriteIndex();
                         }
-
-                        LobOrderQueue->updateWriteIndex();
                         SniperOrderQueue->updateReadIndex();
+
 
                     }
                 }
@@ -149,6 +156,7 @@ namespace internal_lib {
 
                 
                 if (LIKELY(MMreadOrder != nullptr)) {
+
                     LogElement* log = Logger->getNextToWriteTo();
                     if (LIKELY(log != nullptr)) {
                         log->log_id = 1;
@@ -171,6 +179,7 @@ namespace internal_lib {
                         write->out_cycle_count = MMreadOrder->out_cycle_count;
                         
                         // order is sent from order Gateway to Matching Engine
+
                         LogElement* log = Logger->getNextToWriteTo();
                         
                         if (LIKELY(log != nullptr)) {
@@ -222,8 +231,7 @@ namespace internal_lib {
                     }
                 }
             }
-
-            // std::this_thread::sleep_for(std::chrono::seconds(5));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     };
 };

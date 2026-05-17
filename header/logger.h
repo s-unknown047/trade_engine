@@ -56,7 +56,6 @@ namespace internal_lib {
     }
 
     void run() noexcept {
-      std::cout << "logger,h" << std::endl;
       std::ofstream file(file_name_, std::ios::out | std::ios::trunc);
 
       if (!file.is_open()) {
@@ -69,11 +68,8 @@ namespace internal_lib {
 
       while (running) {
           bool busy = false;
-                std::cout << "logger,h 1" << std::endl;
-
           busy |= drainBatch(matching_engine_queue, file, LIMIT);
           busy |= drainBatch(order_gateway_queue, file, LIMIT);
-          std::cout<< "is this working";
           if (busy == false) std::this_thread::yield();
       }
 
@@ -129,7 +125,6 @@ namespace internal_lib {
       char* write_UserOrder(const UserOrder &order, char *buffer)
       {
 
-        std::cout<<" persisted : "<< order.order_id <<"\n";
         buffer = write_string("user order Arrived_cycle count : ", buffer);
         *buffer++ = '\n';
         buffer = convert_u64_to_str(order.arrived_cycle_count, buffer);
@@ -239,7 +234,6 @@ namespace internal_lib {
       bool drainBatch(Common::LFQueue<internal_lib::LogElement>* q, std::ofstream& file, int limit) noexcept {
         
         // define a 4kb stack buffer to store value of LogElement we can store at most limit amout of logs   
-        std::cout<< "in drain batch \n"; 
         char buffer[4096];
         // start of buffer
         char* offset = buffer;
@@ -254,7 +248,6 @@ namespace internal_lib {
           internal_lib::LogElement* elem = q->getNextToRead();
           if (!elem) break; // nothing to put in buffer 
          
-          std::cout<<" received " <<elem->log_id<<"\n";
           offset = convert_u64_to_str(elem->log_id, offset);
           *offset++ = ' ';  
           offset = convert_u64_to_str(elem->timestamp, offset);

@@ -10,8 +10,8 @@ namespace internal_lib
     private:
         Common::LFQueue<internal_lib::LOBOrder> *LobOrderQueue;
         Common::LFQueue<internal_lib::LOBAck> *LobAck;
-        Common::LFQueue<internal_lib::BroadCast> *BroadCast; // to brodcast changes so that user can have updated orderBook
-        Common::LFQueue<internal_lib::LogElement> *matchLog; //  this is to log
+        Common::LFQueue<internal_lib::BroadCast> *BroadCast; 
+        Common::LFQueue<internal_lib::LogElement> *matchLog; 
 
         internal_lib::limitedOrderBook<true> BuyOrderBook;
         internal_lib::limitedOrderBook<false> SellOrderBook;
@@ -22,19 +22,17 @@ namespace internal_lib
         MatchingEngine(
             size_t max_price_ticks,
             size_t max_entries_per_price,
-            Common::LFQueue<internal_lib::LOBOrder> *req_order) : LobOrderQueue(req_order), BuyOrderBook(max_price_ticks, max_entries_per_price), SellOrderBook(max_price_ticks, max_entries_per_price)
-        {}
+            Common::LFQueue<internal_lib::LOBAck> *lobAck ,Common::LFQueue<internal_lib::LOBOrder> *req_order, Common::LFQueue<internal_lib::BroadCast> *broadcast, Common::LFQueue<internal_lib::LogElement> *match) :LobAck(lobAck), LobOrderQueue(req_order), BuyOrderBook(max_price_ticks, max_entries_per_price), SellOrderBook(max_price_ticks, max_entries_per_price), BroadCast(broadcast), matchLog(match){}
 
         void matchingEngine(std::atomic<bool> &start_Engine, std::atomic<bool> &terminate_engine)
         {
-            std::cout << "this is the matching engine" << std::endl; 
             while (!start_Engine.load(std::memory_order_acquire))
             {
                 if (terminate_engine.load(std::memory_order_acquire)) return;
             }
 
             while (!terminate_engine.load(std::memory_order_acquire))
-            {
+            { 
                 readOrder();
             }
 
@@ -44,28 +42,27 @@ namespace internal_lib
         void readOrder() noexcept
         {
             internal_lib::LOBOrder *order = LobOrderQueue->getNextToRead();
-
+                       
             if (UNLIKELY(order == nullptr))
             {
                 return;
             }
 
             auto write_log = matchLog->getNextToWriteTo();
-
-            if (UNLIKELY(write_log != nullptr))
+            
+            if (LIKELY(write_log != nullptr))
             {
-
                 write_log->log_id = 3;
                 write_log->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
                 write_log->log_data = *order;
 
                 matchLog->updateWriteIndex();
             }
-
+          
             bool is_buy = ((order->order_type == 'b') ? true : false);
 
             if (order->req_type == 'c')
-            {
+            {   
                 create_order(*order, is_buy);
             }
             else if (order->req_type == 'u')
@@ -81,17 +78,18 @@ namespace internal_lib
         };
 
         uint64_t create_order(LOBOrder &order, bool is_buy)  noexcept
-        {
+        {       
             aggresiveMatch(order, is_buy);
-            
+          
             if (order.quantity > 0)
-            {
+            { 
                 if (is_buy)
                     BuyOrderBook.createOrder(order);
                 else
                     SellOrderBook.createOrder(order);
 
                 auto write_log = matchLog->getNextToWriteTo();
+                
                 if (UNLIKELY(write_log != nullptr))
                 {
                     write_log->log_id = 7;
@@ -101,14 +99,14 @@ namespace internal_lib
                     matchLog->updateWriteIndex();
                 }
 
-                changeInQuantity(order.system_id, order.price, order.quantity, 'N', is_buy == 'b' ? 'b' : 's');
-
+                // Fixed the ternary char comparison bug here
+                changeInQuantity(order.system_id, order.price, order.quantity, 'N', is_buy ? 'B' : 'S');
+                 
                 if (order.trade_id == 1)
                 {
                     Ack(order, static_cast<size_t>(order.price * 10), 'N', order.quantity);
                 }
             }
-            
             uint64_t time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
             return time;
         }
@@ -219,119 +217,125 @@ namespace internal_lib
         }
 
         void aggresiveMatch(LOBOrder &order, bool is_buy) noexcept
-        {
+        {   
             if (is_buy)
             {
                 // look in sell table
                 while (order.quantity > 0)
-                {
-
+                {  
                     size_t best_ask_idx = SellOrderBook.get_optimal_price();
                     size_t price = static_cast<size_t>(order.price * 10);
+                    
                     if (price < best_ask_idx)
                         break;
-                    if (price >= best_ask_idx)
+                    
+                    std::vector<internal_lib::LOBOrder> *level = SellOrderBook.get_order_at_prize(best_ask_idx);
+
+                    // Added Segfault protection 
+                    if (level == nullptr || level->empty()) 
+                        break;
+
+                    for (LOBOrder &ord : *level)
                     {
-                        std::vector<internal_lib::LOBOrder> *level = SellOrderBook.get_order_at_prize(best_ask_idx);
+                        if (UNLIKELY(ord.quantity == 0))
+                            continue;
 
-                        for (LOBOrder &ord : *level)
+                        uint32_t trade = ord.quantity < order.quantity ? ord.quantity : order.quantity;
+
+                        order.quantity -= trade;
+                        ord.quantity -= trade;
+
+                        auto write_Broadcast = matchLog->getNextToWriteTo();
+
+                        if (LIKELY(write_Broadcast != nullptr))
                         {
-                            if (UNLIKELY(ord.quantity == 0))
-                                continue;
-
-                            uint32_t trade = ord.quantity < order.quantity ? ord.quantity : order.quantity;
-
-                            order.quantity -= trade;
-                            ord.quantity -= trade;
-
-                            auto write_Broadcast = matchLog->getNextToWriteTo();
-
-                            if (LIKELY(write_Broadcast != nullptr))
-                            {
-                                write_Broadcast->log_id = 4;
-                                write_Broadcast->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-                                write_Broadcast->log_data = order;
-                                matchLog->updateWriteIndex();
-                            }
-
-                            if (order.trade_id == 1)
-                            {
-                                Ack(order, best_ask_idx, 'T', trade);
-                            }
-
-                            if (ord.trade_id == 1)
-                            {
-                                Ack(ord, best_ask_idx, 'T', trade);
-                            }
-
-                            if (ord.quantity == 0)
-                                SellOrderBook.deleteOrder(ord.system_id);
-
-                            if (order.quantity == 0)
-                                break;
+                            write_Broadcast->log_id = 4;
+                            write_Broadcast->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+                            write_Broadcast->log_data = order;
+                            matchLog->updateWriteIndex();
                         }
+
+                        if (order.trade_id == 1)
+                        {
+                            Ack(order, best_ask_idx, 'T', trade);
+                        }
+
+                        if (ord.trade_id == 1)
+                        {
+                            Ack(ord, best_ask_idx, 'T', trade);
+                        }
+
+                        if (ord.quantity == 0)
+                            SellOrderBook.deleteOrder(ord.system_id);
+
+                        if (order.quantity == 0)
+                            break;
                     }
                 }
             }
             else
             {
-
                 // look is buy table
-
-                while (order.quantity >= 0)
+                // Fixed infinite loop bug (quantity >= 0 changed to > 0)
+                while (order.quantity > 0)
                 {
                     size_t price = static_cast<size_t>(order.price * 10);
-                    size_t best_ask_idx = BuyOrderBook.get_optimal_price();
+                    size_t best_bid_idx = BuyOrderBook.get_optimal_price();
 
-                    if (price <= best_ask_idx)
+                    // Fixed missing spread break
+                    if (price > best_bid_idx)
+                        break;
+                    
+                    std::vector<internal_lib::LOBOrder> *buy_order = BuyOrderBook.get_order_at_prize(best_bid_idx);
+
+                    // Added Segfault protection 
+                    if (buy_order == nullptr || buy_order->empty()) 
+                        break;
+
+                    for (internal_lib::LOBOrder &Border : *buy_order)
                     {
-                        std::vector<internal_lib::LOBOrder> *buy_order = BuyOrderBook.get_order_at_prize(best_ask_idx);
+                        if (Border.quantity == 0)
+                            continue;
 
-                        for (internal_lib::LOBOrder &Border : *buy_order)
+                        uint32_t trade = Border.quantity < order.quantity ? Border.quantity : order.quantity;
+
+                        order.quantity -= trade;
+                        Border.quantity -= trade;
+
+                        auto write_Broadcast = matchLog->getNextToWriteTo();
+
+                        if (LIKELY(write_Broadcast != nullptr))
                         {
-                            if (Border.quantity == 0)
-                                continue;
-
-                            uint32_t trade = Border.quantity < order.quantity ? Border.quantity : order.quantity;
-
-                            order.quantity -= trade;
-                            Border.quantity -= trade;
-
-                            auto write_Broadcast = matchLog->getNextToWriteTo();
-
-                            if (LIKELY(write_Broadcast != nullptr))
-                            {
-                                write_Broadcast->log_id = 4;
-                                write_Broadcast->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-                                write_Broadcast->log_data = order;
-                                matchLog->updateWriteIndex();
-                            }
-
-                            if (order.trade_id == 1)
-                            {
-                                Ack(order, best_ask_idx, 'T', trade);
-                            }
-
-                            if (Border.trade_id == 1)
-                            {
-                                Ack(Border, best_ask_idx, 'T', trade);
-                            }
-
-                            if (Border.quantity == 0)
-                                BuyOrderBook.deleteOrder(Border.system_id);
-
-                            if (order.quantity == 0)
-                                break;
+                            write_Broadcast->log_id = 4;
+                            write_Broadcast->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+                            write_Broadcast->log_data = order;
+                            matchLog->updateWriteIndex();
                         }
+
+                        if (order.trade_id == 1)
+                        {
+                            Ack(order, best_bid_idx, 'T', trade);
+                        }
+
+                        if (Border.trade_id == 1)
+                        {
+                            Ack(Border, best_bid_idx, 'T', trade);
+                        }
+
+                        if (Border.quantity == 0)
+                            BuyOrderBook.deleteOrder(Border.system_id);
+
+                        if (order.quantity == 0)
+                            break;
                     }
                 }
             }
         }
 
         void Ack(LOBOrder &order, size_t best_price_ask, char req_type, uint32_t trade_quantity) noexcept
-        {
+        {   
             internal_lib::LOBAck *write_log = LobAck->getNextToWriteTo();
-            while (write_log == nullptr)
+            if (write_log == nullptr)
             {
                 std::this_thread::yield();
                 write_log = LobAck->getNextToWriteTo();

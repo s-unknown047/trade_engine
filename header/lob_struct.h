@@ -62,7 +62,7 @@ namespace internal_lib
 
         internal_lib::LOBOrder *peekOrder(uint32_t systemid)
         {
-            if (UNLIKELY(systemid >= LUT_SIZE))
+            if (UNLIKELY(systemid >= LUT_SIZE || LUT[systemid].first == -1 || LUT[systemid].second == -1))
                 return nullptr;
             return &book[LUT[systemid].first][LUT[systemid].second];
         }
@@ -142,7 +142,6 @@ namespace internal_lib
             }
 
             std::pair<int, int> order = LUT[system_id];
-
             int price_index = order.first;
             int col_no = order.second;
 

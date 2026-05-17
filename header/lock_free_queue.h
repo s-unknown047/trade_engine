@@ -15,7 +15,6 @@ namespace Common
         std::vector<T> store_;
         std::atomic<size_t> next_write_index_ = {0};
         std::atomic<size_t> next_read_index_ = {0};
-        std::atomic<size_t> num_elements_ = {0};
 
     public:
         LFQueue(std::size_t num_elems) : store_(num_elems, T()) {}
@@ -35,7 +34,6 @@ namespace Common
         {   
             ASSERT((next_write_index_ + 1) % store_.size() != next_read_index_, "Write is Invalid " + std::to_string(pthread_self()));
             next_write_index_ = (next_write_index_ + 1) % store_.size();
-            num_elements_++;
         }
 
         auto getNextToRead() noexcept
@@ -45,14 +43,16 @@ namespace Common
 
         auto updateReadIndex() noexcept
         {
+            ASSERT(next_read_index_ != next_write_index_, " Read is Invalid " + std::to_string(pthread_self()));
             next_read_index_ = (next_read_index_ + 1) % store_.size();
-            ASSERT(num_elements_ != 0, " Read is Invalid " + std::to_string(pthread_self()));
-            num_elements_--;
         }
 
         auto size() const noexcept
         {
-            return num_elements_.load();
+            auto w = next_write_index_.load(std::memory_order_relaxed);
+            auto r = next_read_index_.load(std::memory_order_relaxed);
+            if (w >= r) return w - r;
+            return store_.size() - r + w;
         }
     };
 };
