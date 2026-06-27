@@ -51,7 +51,6 @@ namespace internal_lib
                 order.trader_id = 1;                              // sniper trader
                 order.arrived_cycle_count = 0;
                 
-
                 TestStore.push_back(order);
 
                                

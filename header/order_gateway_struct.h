@@ -8,8 +8,37 @@
 // ordergateway send it to matching engine and receive ack from the matching engine
 
 // sniper high precision trading stategy
+
+
 namespace internal_lib
-{
+{ 
+     // we have identifier arriving at Order Gateway = 1 log UserOrder
+  // we have identifier from orderGateway to Matching engine = 2  log Data = LOBOrder
+  // we have arrived at matcing engine  idetifier no = 3  log data = LOBOrder
+  // order aggrive match identifier no = 4 log data = LOBOrder
+  // order created in LOB identifier  = 5  log Data = loborder
+  // order Deleted in LOB id = 6 log = ""
+  // order quantity update id  = 7  loborder
+  // we will not log price change as it is deleting order and creating it 
+  // matching engine ack id = 8  log = loback
+  // order Gateway Received an ack id = 9 log data loback
+  // order Gateway send an ack to sniper/alpha id = 10 userack
+  
+     
+    inline constexpr uint8_t GATEWAY_RECEIVE_USER_ORDER = 1;  // Payload: UserOrder
+    inline constexpr uint8_t GATEWAY_SEND_TO_ME         = 2;  // Payload: LOBOrder
+    inline constexpr uint8_t ME_RECEIVE_ORDER           = 3;  // Payload: LOBOrder
+
+    // --- Limit Order Book (LOB) Actions ---
+    inline constexpr uint8_t ME_AGGRESSIVE_MATCH        = 4;  // Payload: LOBOrder
+    inline constexpr uint8_t LOB_CREATE_ORDER           = 5;  // Payload: LOBOrder
+    inline constexpr uint8_t LOB_DELETE_ORDER           = 6;  // Payload: None
+    inline constexpr uint8_t LOB_UPDATE_QUANTITY        = 7;  // Payload: LOBOrder
+
+    // --- Acknowledgement Flow ---
+    inline constexpr uint8_t ME_SEND_ACK                = 8;  // Payload: LOBAck
+    inline constexpr uint8_t GATEWAY_RECEIVE_ME_ACK     = 9;  // Payload: LOBAck
+    inline constexpr uint8_t GATEWAY_SEND_USER_ACK      = 10; // Payload: UserAck
 
     // we will make sure that our structure are power of 2 because it make them chache and memory frendly
     // as the first address of every structure must be divisible by 2 and if it is multiple of two then

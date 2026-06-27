@@ -159,17 +159,6 @@ To compile and test the standalone Lock-Free Queue performance:
 ```bash
 g++ -O3 -std=c++17 -pthread lock_free_queue/LFQ_Implementation_example.cpp -o lfq_benchmark
 ./lfq_benchmark
-```
-
----
-
-## Performance Metrics
-
-Based on internal benchmarks running on dedicated cores (results recorded in `lock_free_queue/outpuct_benchmark.md`):
-
-| Operation | Median Latency | P75 Latency | P95 Latency | P99 Latency |
-| :--- | :--- | :--- | :--- | :--- |
-| **Queue Write (Producer)** | 220 ns | 346 ns | 473 ns | 624 ns |
-| **Queue Read (Consumer)** | 221 ns | 319 ns | 478 ns | 799 ns |
+`
 
 *Latencies may vary depending on CPU clock speed, governor profile, and thread scheduling conditions.*

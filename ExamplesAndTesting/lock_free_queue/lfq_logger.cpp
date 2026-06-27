@@ -7,9 +7,11 @@
 #include <functional>
 #define SIZE 10
 
+
 inline uint64_t time() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock().now().time_since_epoch()).count();
 }
+
 void producer(Common::LFQueue<internal_lib::LogElement>* userOrder, std::vector<std::chrono::duration<double,std::nano>> produce_time) {
     std::atomic<int> cnt = {0};
     std::cout<< "in producer"<<std::endl;
@@ -26,7 +28,6 @@ void producer(Common::LFQueue<internal_lib::LogElement>* userOrder, std::vector<
         writea->log_data = internal_lib::UserOrder{};
         internal_lib::UserOrder* write = &std::get<internal_lib::UserOrder>(writea->log_data);
       
-    
         write->arrived_cycle_count = t;
         write->order_id = cnt;
         write->trader_id = 0;
@@ -40,7 +41,6 @@ void producer(Common::LFQueue<internal_lib::LogElement>* userOrder, std::vector<
         auto finish_time = std::chrono::high_resolution_clock::now();
 
         produce_time.push_back(arrival_time-finish_time);
-        
         cnt++;
     }    
 }
@@ -67,8 +67,8 @@ int main() {
 
     internal_lib::Async_Logger logger(path, &match, &Order);
     
-    auto t1 = createAndStartThread(0, "Logger Thread", [&logger] () { logger.run();});
-    auto t2 = createAndStartThread(2 ,"this is Producer thread", producer, &Order, producer_time);
+    auto t1 = Common::createAndStartThread(0, "Logger Thread", [&logger] () { logger.run();});
+    auto t2 = Common::createAndStartThread(2 ,"this is Producer thread", producer, &Order, producer_time);
     
         t2->join();
 
@@ -76,7 +76,6 @@ int main() {
         // printVal(&Order);
 
         // std::this_thread::sleep_for(std::chrono::seconds(2));
-
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
     logger.stop();

@@ -19,23 +19,24 @@ namespace internal_lib
         size_t best_price; // this points to the optimal/best price of the order
 
         // we are having price-based queue (vectors) in which when the order arrives with the price x it stores that in x price list in FIFO manner
-        std::vector<std::vector<internal_lib::LOBOrder>> book; // have all the price table from min_price to max price at gap of 0.1 price difference
+        // have all the price table from min_price to max price at gap of 0.1 price difference, book size is number of ticks 
+        std::vector<std::vector<internal_lib::LOBOrder>> book; 
         std::vector<std::pair<size_t, size_t>> LUT;            // this is to look up price and col no based on system_id   systemId -> {price, colno in }
         std::vector<int> active_counts;                        // count number of live orders for a specific price
-        size_t max_price_possible;
-        std::vector<internal_lib::LOBOrder> emptyOrderList;
+        size_t max_price_possible;                             // max_price_possible is max_price * 10 
 
         void glide_best_prize() noexcept
         {
             if (isBuy)
             { // this is template added to every order
                 while (best_price > 0 && active_counts[best_price] == 0)
-                    best_price--; // if someone wants to buy then the price should be as low as possible and there should be some active order present
+                    best_price--; // this is buyer book the person that bid  higher price will be  more aggresssive  so pointer will be on the highest price buyer  
+                    // can  offer 
             }
             else
             {
                 while (best_price < max_price_possible && active_counts[best_price] == 0)
-                    best_price++; // if sell, try to sell at max price possible
+                    best_price++; // if sellbook the seller selling at lowest  price  will be the most aggressive  buyer
             }
         }
 
@@ -47,7 +48,7 @@ namespace internal_lib
 
             for (auto &t : book)
             {
-                t.reserve(max_number_of_entries_of_same_price);
+                t.reserev(max_number_of_entries_of_same_price);
             }
 
             active_counts.resize(max_price, 0);
@@ -82,7 +83,7 @@ namespace internal_lib
             size_t price_index = static_cast<size_t>(order.price * 10);
 
             if (isBuy)
-            {
+            {   // for seller 
                 if (best_price < price_index)
                     best_price = price_index;
             }
@@ -111,20 +112,19 @@ namespace internal_lib
 
             if (LIKELY(p.first != -1 && p.second != -1))
             {
-
                 size_t price_index = p.first;
                 size_t col_no = p.second;
 
                 uint32_t newQuantity = order.quantity;
                 uint32_t oldQuantity = book[price_index][col_no].quantity;
+
                 if (UNLIKELY(newQuantity == oldQuantity))
                     return;
 
                 if (newQuantity < oldQuantity)
                 {
                     book[price_index][col_no].quantity = newQuantity;
-                }
-                else
+                } else
                 {
                     book[price_index][col_no].quantity = 0;
                     book[price_index].push_back(order);

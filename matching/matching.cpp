@@ -22,7 +22,11 @@ namespace internal_lib
         MatchingEngine(
             size_t max_price_ticks,
             size_t max_entries_per_price,
-            Common::LFQueue<internal_lib::LOBAck> *lobAck ,Common::LFQueue<internal_lib::LOBOrder> *req_order, Common::LFQueue<internal_lib::BroadCast> *broadcast, Common::LFQueue<internal_lib::LogElement> *match) :LobAck(lobAck), LobOrderQueue(req_order), BuyOrderBook(max_price_ticks, max_entries_per_price), SellOrderBook(max_price_ticks, max_entries_per_price), BroadCast(broadcast), matchLog(match){}
+            Common::LFQueue<internal_lib::LOBAck> *lobAck ,Common::LFQueue<internal_lib::LOBOrder> *req_order, 
+            Common::LFQueue<internal_lib::BroadCast> *broadcast, 
+            Common::LFQueue<internal_lib::LogElement> *match) :LobAck(lobAck), LobOrderQueue(req_order),
+             BuyOrderBook(max_price_ticks, max_entries_per_price), 
+             SellOrderBook(max_price_ticks, max_entries_per_price), BroadCast(broadcast), matchLog(match){}
 
         void matchingEngine(std::atomic<bool> &start_Engine, std::atomic<bool> &terminate_engine)
         {
@@ -52,7 +56,7 @@ namespace internal_lib
             
             if (LIKELY(write_log != nullptr))
             {
-                write_log->log_id = 3;
+                write_log->log_id = internal_lib::ME_RECEIVE_ORDER;
                 write_log->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
                 write_log->log_data = *order;
 
@@ -92,14 +96,13 @@ namespace internal_lib
                 
                 if (UNLIKELY(write_log != nullptr))
                 {
-                    write_log->log_id = 7;
+                    write_log->log_id = internal_lib::LOB_CREATE_ORDER;
                     write_log->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
                     write_log->log_data = order;
 
                     matchLog->updateWriteIndex();
                 }
 
-                // Fixed the ternary char comparison bug here
                 changeInQuantity(order.system_id, order.price, order.quantity, 'N', is_buy ? 'B' : 'S');
                  
                 if (order.trade_id == 1)
@@ -147,7 +150,7 @@ namespace internal_lib
 
                 if (write_log != nullptr)
                 {
-                    write_log->log_id = 7;
+                    write_log->log_id = internal_lib::LOB_UPDATE_QUANTITY;
                     write_log->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
                     write_log->log_data = order;
 
@@ -177,7 +180,7 @@ namespace internal_lib
             auto write_log = matchLog->getNextToWriteTo();
             
             if (UNLIKELY(write_log != nullptr)) {
-                write_log->log_id = 6;
+                write_log->log_id = internal_lib::LOB_DELETE_ORDER;
                 write_log->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
                 write_log->log_data = order;
 
@@ -231,7 +234,6 @@ namespace internal_lib
                     
                     std::vector<internal_lib::LOBOrder> *level = SellOrderBook.get_order_at_prize(best_ask_idx);
 
-                    // Added Segfault protection 
                     if (level == nullptr || level->empty()) 
                         break;
 
@@ -249,7 +251,7 @@ namespace internal_lib
 
                         if (LIKELY(write_Broadcast != nullptr))
                         {
-                            write_Broadcast->log_id = 4;
+                            write_Broadcast->log_id = internal_lib::ME_AGGRESSIVE_MATCH;
                             write_Broadcast->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
                             write_Broadcast->log_data = order;
                             matchLog->updateWriteIndex();
@@ -306,7 +308,7 @@ namespace internal_lib
 
                         if (LIKELY(write_Broadcast != nullptr))
                         {
-                            write_Broadcast->log_id = 4;
+                            write_Broadcast->log_id = internal_lib::ME_AGGRESSIVE_MATCH;
                             write_Broadcast->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
                             write_Broadcast->log_data = order;
                             matchLog->updateWriteIndex();

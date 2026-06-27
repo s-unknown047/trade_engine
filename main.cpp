@@ -10,20 +10,21 @@
 #include "header/Thread.h"
 #include "header/prewarmer.h"
 
+#define size 100000
 #define max_price_tick 10000
 #define max_entries_per_price 400
 #define file_path "eventLog.log"
 
 int main () {
 
-    Common::LFQueue<internal_lib::UserOrder> sniperOrder(10000);
-    Common::LFQueue<internal_lib ::UserAck> sniperAck(10000);
-    Common::LFQueue<internal_lib::LOBOrder> lob(10000);
-    Common::LFQueue<internal_lib::LOBAck> lobAck(10000);
-    Common::LFQueue<internal_lib::BroadCast> broadCast(10000);
-    Common::LFQueue<internal_lib::LogElement> match_to_log(10000);
-    Common::LFQueue<internal_lib::LogElement> Order_Gateway_to_Logger(1000);
-    Common::LFQueue<internal_lib::UserOrder> marketMaker(10000); 
+    Common::LFQueue<internal_lib::UserOrder> sniperOrder(size);
+    Common::LFQueue<internal_lib ::UserAck> sniperAck(size);
+    Common::LFQueue<internal_lib::LOBOrder> lob(size);
+    Common::LFQueue<internal_lib::LOBAck> lobAck(size);
+    Common::LFQueue<internal_lib::BroadCast> broadCast(size);
+    Common::LFQueue<internal_lib::LogElement> match_to_log(size);
+    Common::LFQueue<internal_lib::LogElement> Order_Gateway_to_Logger(size);
+    Common::LFQueue<internal_lib::UserOrder> marketMaker(size); 
     size_t max_price = static_cast<size_t>(max_price_tick);
     size_t max_entries = static_cast<size_t>(max_entries_per_price);
     
@@ -72,35 +73,21 @@ int main () {
         logger.run();
     });
     
-    std::cout << "I am in main " << std::endl;
     start_matchingEngine.store(true, std::memory_order_release);
     start_orderGateway.store(true, std::memory_order_release);
-    start_aplha_server.store(true, std::memory_order_release);
+    start_aplha_server.store(true, std::memory_order_release); 
     
-    std::cout << "this is try before time" << std::endl;
-
-    // stop now
-    // wait for 5 second  
+    
     std::this_thread::sleep_for(std::chrono::seconds(3));
 
-    std::cout << "this is try" << std::endl;
   
     terminate_matchingEngine.store(true, std::memory_order_release);
     terminate_orderGateway.store(true, std::memory_order_release);
     terminate_alpha_server.store(true, std::memory_order_release);
-    std::cout << "this is last try" << std::endl;
     
     alphaServer_thread->join();
-    std::cout << "this is last try 1" << std::endl;
-
-   
     orderGateway_thread->join();
-        std::cout << "this is last try 2" << std::endl;
-
-     matching_engine_thread->join();
-            std::cout << "this is last try 2" << std::endl;
-
-     
+    matching_engine_thread->join();
 
     delete matching_engine_thread;
     delete orderGateway_thread;

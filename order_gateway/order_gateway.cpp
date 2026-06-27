@@ -92,18 +92,15 @@ namespace internal_lib {
                // order received at order Gateway from Sniper       
                 UserOrder* readOrder = SniperOrderQueue->getNextToRead();
 
-
-               
-
                 if (LIKELY(readOrder != nullptr)) {
-
+                     
                     uint64_t arrival_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
                     
 
                     auto write_log = Logger->getNextToWriteTo();
 
                     if (write_log != nullptr) {
-                        write_log->log_id = 1;
+                        write_log->log_id = internal_lib::GATEWAY_RECEIVE_USER_ORDER;
                         write_log->timestamp =  arrival_time;
                         write_log->log_data = *readOrder;
                         Logger->updateWriteIndex();
@@ -141,7 +138,7 @@ namespace internal_lib {
                         auto lobLog = Logger->getNextToWriteTo();
 
                         if (LIKELY(lobLog !=  nullptr) ) {
-                            lobLog->log_id = 2;
+                            lobLog->log_id = internal_lib::GATEWAY_SEND_TO_ME;
                             lobLog->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
                             lobLog->log_data = *write;
                             Logger->updateWriteIndex();
@@ -183,7 +180,7 @@ namespace internal_lib {
                         LogElement* log = Logger->getNextToWriteTo();
                         
                         if (LIKELY(log != nullptr)) {
-                            log->log_id = 2;
+                            log->log_id = internal_lib::GATEWAY_SEND_TO_ME;
                             log->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
                             log->log_data = *write;
                             Logger->updateWriteIndex();
@@ -201,16 +198,17 @@ namespace internal_lib {
                 LOBAck* readAck = LobAckQueue->getNextToRead();
 
                 if (LIKELY(readAck != nullptr)) {
-                   
+                 // log that we  received the ack  from me (matching engine)
                     LogElement* logger = Logger->getNextToWriteTo();
                     if (LIKELY(logger != nullptr)) {
                         logger->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock().now().time_since_epoch()).count();
-                        logger->log_id = 9;
+                        logger->log_id = internal_lib::GATEWAY_RECEIVE_ME_ACK;
                         logger->log_data = *readAck;
                     }
 
+                    //  create ack for sniper order 
                     UserAck* writeAck = SniperOrderAck->getNextToWriteTo();
-
+                    
                     if (LIKELY(writeAck  != nullptr)) {
                         writeAck->order_id = SystemToOrderId(readAck->system_id);
                         writeAck->quantity = readAck->quantity;
@@ -219,12 +217,14 @@ namespace internal_lib {
                         writeAck->status = readAck->status;
 
                         LogElement* logger = Logger->getNextToWriteTo();
-                        if (LIKELY(logger != nullptr)) {
-                            logger->log_id = 10;
-                            logger->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock().now().time_since_epoch()).count();
-                            logger->log_data = *writeAck;
-                            Logger->updateWriteIndex();
-                        }
+                    
+                    //   log that gateway  send  user ack
+                    if (LIKELY(logger != nullptr)) {
+                        logger->log_id = internal_lib::GATEWAY_SEND_USER_ACK;
+                        logger->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock().now().time_since_epoch()).count();
+                        logger->log_data = *writeAck;
+                        Logger->updateWriteIndex();
+                    }
                         
                         SniperOrderAck->updateWriteIndex();
                         LobAckQueue->updateReadIndex();
