@@ -1,8 +1,11 @@
+#pragma once
 #include "../header/lob_struct.h"
 #include "../header/lock_free_queue.h"
 #include "../header/order_gateway_struct.h"
 #include "../header/logger.h"
+#include "../header/bench.h"
 
+#define size_ 100005
 namespace internal_lib
 {
     class MatchingEngine
@@ -16,6 +19,14 @@ namespace internal_lib
         internal_lib::limitedOrderBook<true> BuyOrderBook;
         internal_lib::limitedOrderBook<false> SellOrderBook;
 
+        std::vector<uint64_t> QueueTime; // time between when order gateway send the order and processing at the me
+        std::vector<uint64_t> Throughtput; // the time between the prcesssing the
+        std::vector<uint64_t> matchingProcessingTime; // mathching engine processing time
+        std::vector<uint64_t> tickToTrade;  // measures the time when the order arrive at the order gateway and processed at
+
+        uint64_t lastOrderTime = 0;
+        // std::vector<uint64_t>
+
     public:
         MatchingEngine() = delete;
 
@@ -26,7 +37,12 @@ namespace internal_lib
             Common::LFQueue<internal_lib::BroadCast> *broadcast, 
             Common::LFQueue<internal_lib::LogElement> *match) :LobAck(lobAck), LobOrderQueue(req_order),
              BuyOrderBook(max_price_ticks, max_entries_per_price), 
-             SellOrderBook(max_price_ticks, max_entries_per_price), BroadCast(broadcast), matchLog(match){}
+             SellOrderBook(max_price_ticks, max_entries_per_price), BroadCast(broadcast), matchLog(match){
+                QueueTime.reserve(size_);
+                Throughtput.reserve(size_);
+                matchingProcessingTime.reserve(size_);
+                tickToTrade.reserve(size_);
+            }
 
         void matchingEngine(std::atomic<bool> &start_Engine, std::atomic<bool> &terminate_engine)
         {
@@ -40,7 +56,19 @@ namespace internal_lib
                 readOrder();
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(3));
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+
+            std::cout << "----------" << " This is Matching Engine Bechmark " << "---------" << std::endl;
+            
+            std::string q = "Waiting Queue Time";
+
+            double cps = internal_lib::get_cycle_per_ns();
+
+            internal_lib::showBenchmark(QueueTime, cps, q);
+            internal_lib::showBenchmark(Throughtput, cps, "Throughout Queue Time");
+            internal_lib::showBenchmark(matchingProcessingTime, cps, "Matching Engine Processing BenchMark");
+            internal_lib::showBenchmark(tickToTrade, cps, "Order Tick To Trade BenchMark");
+
         }
 
         void readOrder() noexcept
@@ -51,34 +79,57 @@ namespace internal_lib
             {
                 return;
             }
+            
+            internal_lib:compiler_barrier();
+            uint64_t arrivalCycle = internal_lib::now_cycle();
+            internal_lib::compiler_barrier();
+
+            QueueTime.push_back(arrivalCycle - order->out_cycle_count);
 
             auto write_log = matchLog->getNextToWriteTo();
             
             if (LIKELY(write_log != nullptr))
             {
                 write_log->log_id = internal_lib::ME_RECEIVE_ORDER;
-                write_log->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+                write_log->timestamp = arrivalCycle;
                 write_log->log_data = *order;
 
                 matchLog->updateWriteIndex();
             }
-          
+            
+
+            if (LIKELY(lastOrderTime != 0)) {
+               Throughtput.push_back(arrivalCycle - lastOrderTime);    
+            } 
+
+            lastOrderTime = arrivalCycle;
+
+            internal_lib::compiler_barrier();
+            uint64_t processingOrderStart = internal_lib::now_cycle(); 
+            internal_lib::compiler_barrier();
+            
             bool is_buy = ((order->order_type == 'b') ? true : false);
+
+            uint64_t processEndTime = 0;
 
             if (order->req_type == 'c')
             {   
-                create_order(*order, is_buy);
+               processEndTime = create_order(*order, is_buy);
             }
             else if (order->req_type == 'u')
             {
-                updateOrder(*order, is_buy);
+               processEndTime = updateOrder(*order, is_buy);
             }
             else if (order->req_type == 'd')
             {
-                deleteOrder(*order, is_buy);
+                processEndTime = deleteOrder(*order, is_buy);
             }
-
+            
             LobOrderQueue->updateReadIndex();
+
+            matchingProcessingTime.push_back(processEndTime - arrivalCycle);
+            tickToTrade.push_back(processEndTime - order->arrival_cycle_count);
+
         };
 
         uint64_t create_order(LOBOrder &order, bool is_buy)  noexcept
@@ -90,14 +141,19 @@ namespace internal_lib
                 if (is_buy)
                     BuyOrderBook.createOrder(order);
                 else
-                    SellOrderBook.createOrder(order);
+                    SellOrderBook.createOrder(order); 
+
+
+                internal_lib::compiler_barrier();
+                uint64_t orderCreaetd = internal_lib::now_cycle(); // the order is processed and out of queue
+                internal_lib::compiler_barrier();
 
                 auto write_log = matchLog->getNextToWriteTo();
                 
                 if (UNLIKELY(write_log != nullptr))
                 {
                     write_log->log_id = internal_lib::LOB_CREATE_ORDER;
-                    write_log->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+                    write_log->timestamp = orderCreaetd;
                     write_log->log_data = order;
 
                     matchLog->updateWriteIndex();
@@ -110,12 +166,16 @@ namespace internal_lib
                     Ack(order, static_cast<size_t>(order.price * 10), 'N', order.quantity);
                 }
             }
-            uint64_t time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-            return time;
+
+            internal_lib::compiler_barrier();
+            uint64_t processFinish = internal_lib::now_cycle();
+            internal_lib::compiler_barrier();
+
+            return processFinish;  
         }
 
         uint64_t updateOrder (LOBOrder &order, bool is_buy) noexcept {
-            uint64_t done_time = 0;
+            
             LOBOrder* previous_entry;
             if (is_buy) {
                 previous_entry = BuyOrderBook.peekOrder(order.system_id);
@@ -145,13 +205,17 @@ namespace internal_lib
                 {
                     SellOrderBook.UpdateOrderQuantity(order);
                 }
+                
+                internal_lib::compiler_barrier();
+                uint64_t updated_at = internal_lib::now_cycle();
+                internal_lib::compiler_barrier();
 
                 internal_lib::LogElement *write_log = matchLog->getNextToWriteTo();
 
                 if (write_log != nullptr)
                 {
                     write_log->log_id = internal_lib::LOB_UPDATE_QUANTITY;
-                    write_log->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+                    write_log->timestamp = updated_at;
                     write_log->log_data = order;
 
                     matchLog->updateWriteIndex();
@@ -165,8 +229,11 @@ namespace internal_lib
                 }
             }
             
-            done_time =  std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-            return done_time;
+            internal_lib::compiler_barrier();
+            uint64_t processFinish = internal_lib::now_cycle();
+            internal_lib::compiler_barrier();
+
+            return processFinish;  
         }
 
         uint64_t deleteOrder(LOBOrder &order, bool is_buy) {
@@ -177,11 +244,15 @@ namespace internal_lib
                 SellOrderBook.deleteOrder(order.system_id);
             }
             
+            internal_lib::compiler_barrier();
+            uint64_t deleteDone = internal_lib::now_cycle();
+            internal_lib::compiler_barrier();
+            
             auto write_log = matchLog->getNextToWriteTo();
             
             if (UNLIKELY(write_log != nullptr)) {
                 write_log->log_id = internal_lib::LOB_DELETE_ORDER;
-                write_log->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+                write_log->timestamp = deleteDone;
                 write_log->log_data = order;
 
                 matchLog->updateWriteIndex();
@@ -192,9 +263,13 @@ namespace internal_lib
             if (order.trade_id == 1) {
                 Ack(order, static_cast<size_t>(order.price * 10), 'D', order.quantity);
             }
-            
-            uint64_t time =  std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-            return time;
+        
+
+            internal_lib::compiler_barrier();
+            uint64_t processFinish = internal_lib::now_cycle();
+            internal_lib::compiler_barrier();
+
+            return processFinish;  
 
         }   
         
@@ -247,12 +322,16 @@ namespace internal_lib
                         order.quantity -= trade;
                         ord.quantity -= trade;
 
+                        internal_lib::compiler_barrier();
+                        uint64_t trade_done = internal_lib::now_cycle();
+                        internal_lib::compiler_barrier();
+
                         auto write_Broadcast = matchLog->getNextToWriteTo();
 
                         if (LIKELY(write_Broadcast != nullptr))
                         {
                             write_Broadcast->log_id = internal_lib::ME_AGGRESSIVE_MATCH;
-                            write_Broadcast->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+                            write_Broadcast->timestamp = trade_done;
                             write_Broadcast->log_data = order;
                             matchLog->updateWriteIndex();
                         }
@@ -279,6 +358,8 @@ namespace internal_lib
             {
                 // look is buy table
                 // Fixed infinite loop bug (quantity >= 0 changed to > 0)
+
+                
                 while (order.quantity > 0)
                 {
                     size_t price = static_cast<size_t>(order.price * 10);
@@ -305,11 +386,14 @@ namespace internal_lib
                         Border.quantity -= trade;
 
                         auto write_Broadcast = matchLog->getNextToWriteTo();
+                        internal_lib::compiler_barrier();
+                        uint64_t trade_done = internal_lib::now_cycle();
+                        internal_lib::compiler_barrier();
 
                         if (LIKELY(write_Broadcast != nullptr))
                         {
                             write_Broadcast->log_id = internal_lib::ME_AGGRESSIVE_MATCH;
-                            write_Broadcast->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+                            write_Broadcast->timestamp = trade_done;
                             write_Broadcast->log_data = order;
                             matchLog->updateWriteIndex();
                         }

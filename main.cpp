@@ -10,13 +10,12 @@
 #include "header/Thread.h"
 #include "header/prewarmer.h"
 
-#define size 100000
+#define size 200005
 #define max_price_tick 10000
 #define max_entries_per_price 400
 #define file_path "eventLog.log"
 
 int main () {
-
     Common::LFQueue<internal_lib::UserOrder> sniperOrder(size);
     Common::LFQueue<internal_lib ::UserAck> sniperAck(size);
     Common::LFQueue<internal_lib::LOBOrder> lob(size);
@@ -27,7 +26,6 @@ int main () {
     Common::LFQueue<internal_lib::UserOrder> marketMaker(size); 
     size_t max_price = static_cast<size_t>(max_price_tick);
     size_t max_entries = static_cast<size_t>(max_entries_per_price);
-    
     
     internal_lib::MatchingEngine matchEngine(max_price, max_entries, &lobAck ,&lob, &broadCast, &match_to_log);
     internal_lib::OrderGateway orderGateway(&lob, &lobAck, &sniperOrder, &sniperAck, &Order_Gateway_to_Logger, &marketMaker );
@@ -65,9 +63,14 @@ int main () {
     });
 
     
-    // internal_lib::prewarm(50);
+    internal_lib::prewarm(50);
+
+    std::cout << "i am here " << std::endl;
 
     std::this_thread::sleep_for(std::chrono::seconds(3));
+
+        std::cout << "i am here " << std::endl;
+
 
     auto logger_thread =  Common::createAndStartThread(4, "Logger", [&]() {
         logger.run();
@@ -77,7 +80,8 @@ int main () {
     start_orderGateway.store(true, std::memory_order_release);
     start_aplha_server.store(true, std::memory_order_release); 
     
-    
+        std::cout << "i am here " << std::endl;
+
     std::this_thread::sleep_for(std::chrono::seconds(3));
 
   

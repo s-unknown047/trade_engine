@@ -133,3 +133,17 @@ Release: When you perform a store with memory_order_release, you are telling the
     becasuse system_id are generated sequencly while order_id can be random in LUT (Look up table) sytemid -> orderid which is cache friendly as it is stored sequencly 
 
     while order id is random so if use LUT table approach that can not be cache friendy as one order is at one place while next order at differ index far away so not a optimal approch
+
+
+
+ *** lfence and compiler Barrier ***
+
+ Feature	             _mm_lfence()	                                 compiler_barrier()
+Target Audience	       The CPU (Hardware)	                            The Compiler (Software)
+Emits Assembly?	     Yes (lfence instruction)	                    No (Zero instructions)
+Execution Time	       Happens at Runtime	                            Happens at Compile Time
+Runtime Overhead   Yes (Stalls the CPU pipeline)	            No (But prevents optimizations)
+Primary Job	       Stops the CPU from executing future          Stops the Compiler from rearranging your C++                     memory loads too early.                             code sequence.
+
+
+In short: Use compiler_barrier() to stop GCC/Clang from moving your C++ code around. Use _mm_lfence() to stop the Intel/AMD chip from executing that code in the wrong order. For ultra-precise benchmarking (like your now_cycle() function), you need both.

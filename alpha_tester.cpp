@@ -6,7 +6,7 @@
 #include "header/lock_free_queue.h"
 #include "header/order_gateway_struct.h"
 
-#define order_num 1000
+#define order_num 100000
 
 namespace internal_lib
 {
@@ -56,7 +56,7 @@ namespace internal_lib
                                
             }
 
-            auto user = TestStore[0];
+            // auto user = TestStore[0];
  
             // std::cout << "correcte " << user.order_id << std::endl;
              

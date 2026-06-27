@@ -12,7 +12,8 @@
 
 namespace internal_lib
 { 
-     // we have identifier arriving at Order Gateway = 1 log UserOrder
+  
+  // we have identifier arriving at Order Gateway = 1 log UserOrder
   // we have identifier from orderGateway to Matching engine = 2  log Data = LOBOrder
   // we have arrived at matcing engine  idetifier no = 3  log data = LOBOrder
   // order aggrive match identifier no = 4 log data = LOBOrder
@@ -47,7 +48,8 @@ namespace internal_lib
     struct LOBOrder
     {
         // 8 byte
-        uint64_t arrival_cycle_count;
+        uint64_t arrival_cycle_count;// this is to calculate waiting time of order in loborder queue before get 
+                                     // processed by the matching engine  
 
         // 8 byte
         uint32_t system_id; // every order have its unique id in order gateway
@@ -60,7 +62,7 @@ namespace internal_lib
         char req_type;      // c - create u - update d - delete
 
         // 8 byte
-        uint64_t out_cycle_count;
+        uint64_t out_cycle_count; //
     };
 
     struct LOBAck

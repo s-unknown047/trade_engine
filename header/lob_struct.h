@@ -48,7 +48,7 @@ namespace internal_lib
 
             for (auto &t : book)
             {
-                t.reserev(max_number_of_entries_of_same_price);
+                t.reserve(max_number_of_entries_of_same_price);
             }
 
             active_counts.resize(max_price, 0);

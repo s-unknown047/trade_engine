@@ -5,7 +5,9 @@
 #include "../header/order_gateway_struct.h"
 #include "../header/logger.h"   
 #include <unordered_map>
+#include "../header/bench.h"
 
+#define size_ 1000005
 
 namespace internal_lib {
     
@@ -40,7 +42,7 @@ namespace internal_lib {
         std::vector<uint64_t> order_gateway_time;
         
 
-        uint64_t throttle_cycles = 400;
+        // uint64_t throttle_cycles = 400;
         
         //  inline void busy_spin_throttle () noexcept {
         //     if (LIKELY(throttle_cycles > 0)) {
@@ -55,13 +57,13 @@ namespace internal_lib {
         Common::LFQueue<internal_lib::UserAck>* uack,
         Common::LFQueue<internal_lib::LogElement>* log,
         Common::LFQueue<internal_lib::UserOrder>* mm) : LobOrderQueue(laq), LobAckQueue(LOBAck), SniperOrderAck(uack), SniperOrderQueue(uo), MMorderQueue(mm), Logger(log) {
-            order_gateway_time.reserve(10000);   
-            map.reserve(10000);
-            LUT.resize(10000);
+            order_gateway_time.reserve(size_);   
+            map.reserve(size_);
+            LUT.resize(size_);
         }  
 
         long long SystemToOrderId(int sysId) noexcept {
-            if (LIKELY(sysId < LUT.size())) return LUT[sysId];
+            if (sysId < LUT.size()) return LUT[sysId];
             return -1;
         }
          
@@ -89,106 +91,82 @@ namespace internal_lib {
             }
 
             while (!terminate_order_gateway.load(std::memory_order_acquire)){
-               // order received at order Gateway from Sniper       
-                UserOrder* readOrder = SniperOrderQueue->getNextToRead();
-
-                if (LIKELY(readOrder != nullptr)) {
-                     
-                    uint64_t arrival_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+                // this is order gateway processing function 
+                auto gatewayOrderProcess = [&] (UserOrder* order) {
                     
+                    internal_lib::compiler_barrier();
+                    uint64_t arrivalCycle = internal_lib::now_cycle();
+                    internal_lib::compiler_barrier();
 
                     auto write_log = Logger->getNextToWriteTo();
 
                     if (write_log != nullptr) {
                         write_log->log_id = internal_lib::GATEWAY_RECEIVE_USER_ORDER;
-                        write_log->timestamp =  arrival_time;
-                        write_log->log_data = *readOrder;
+                        write_log->timestamp =  arrivalCycle;
+                        write_log->log_data = *order;
                         Logger->updateWriteIndex();
                     }
                     
                     // std::cout<< "log id " << write_log->log_id << std::endl;
-                    int sys_id = AssignSystemId(readOrder->order_id);
 
-                    uint64_t  end_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-                    
-                    order_gateway_time.push_back(end_time - arrival_time);
+                    int sys_id = AssignSystemId(order->order_id);
 
                     // creating LOBOrder* request for the SniperOder (userOrder)
                     
                     internal_lib::LOBOrder* write =  LobOrderQueue->getNextToWriteTo();
                     
-                    
-                    //    std::cout <<"in Sam inside hell"<< std::endl;
- 
+                    // std::cout <<"in Sam inside hell"<< std::endl;
+
                     if (LIKELY(write != nullptr)) {
                         //   std::cout <<"in am inside hell"<< std::endl;
-                        write->arrival_cycle_count = readOrder->arrived_cycle_count;
+                        write->arrival_cycle_count = arrivalCycle;
                         write->system_id = sys_id;
-                        write->order_type = readOrder->order_type;
-                        write->price = readOrder->price;
-                        write->quantity = readOrder->quantity;
-                        write->trade_id = readOrder->trader_id;     
-                        write->req_type = readOrder->req_type;
-                        write->out_cycle_count = readOrder->out_cycle_count; 
-
+                        write->order_type = order->order_type;
+                        write->price = order->price;
+                        write->quantity = order->quantity;
+                        write->trade_id = order->trader_id;     
+                        write->req_type = order->req_type;
+                        internal_lib::compiler_barrier();
+                        write->out_cycle_count = internal_lib::now_cycle(); 
+                        internal_lib::compiler_barrier();
+                        
                         LobOrderQueue->updateWriteIndex();
+                        
+                        internal_lib::compiler_barrier();
+                        uint64_t endCycle = internal_lib::now_cycle();
+                        internal_lib::compiler_barrier();
 
-                        // std::cout << "lb" << write->system_id <<std::endl;
+                        order_gateway_time.push_back(endCycle - arrivalCycle);
 
                         auto lobLog = Logger->getNextToWriteTo();
 
                         if (LIKELY(lobLog !=  nullptr) ) {
                             lobLog->log_id = internal_lib::GATEWAY_SEND_TO_ME;
-                            lobLog->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+                            internal_lib::compiler_barrier();
+                            lobLog->timestamp = internal_lib::now_cycle();
+                            internal_lib::compiler_barrier();
                             lobLog->log_data = *write;
                             Logger->updateWriteIndex();
                         }
-                        SniperOrderQueue->updateReadIndex();
-
-
-                    }
+                    }  
+                };
+               
+                // order received at order Gateway from Sniper       
+                  
+                UserOrder* readOrder = SniperOrderQueue->getNextToRead();
+                
+                if (LIKELY(readOrder != nullptr)) {                  
+                    gatewayOrderProcess(readOrder);
+                    SniperOrderQueue->updateReadIndex();
                 }
 
+                
+ 
                 UserOrder* MMreadOrder = MMorderQueue->getNextToRead();
-
                 
                 if (LIKELY(MMreadOrder != nullptr)) {
-
-                    LogElement* log = Logger->getNextToWriteTo();
-                    if (LIKELY(log != nullptr)) {
-                        log->log_id = 1;
-                        log->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-                        log->log_data = *MMreadOrder;
-                        Logger->updateReadIndex();
-                    }
-                    
-                    LOBOrder* write = LobOrderQueue->getNextToWriteTo();
-
-                    if (LIKELY(write != nullptr)) {
-
-                        write->arrival_cycle_count = MMreadOrder->arrived_cycle_count;
-                        write->system_id = AssignSystemId(MMreadOrder->order_id);
-                        write->order_type = MMreadOrder->order_type;
-                        write->price = MMreadOrder->price;
-                        write->quantity = MMreadOrder->quantity;
-                        write->trade_id = MMreadOrder->trader_id;     
-                        write->req_type = MMreadOrder->req_type;
-                        write->out_cycle_count = MMreadOrder->out_cycle_count;
-                        
-                        // order is sent from order Gateway to Matching Engine
-
-                        LogElement* log = Logger->getNextToWriteTo();
-                        
-                        if (LIKELY(log != nullptr)) {
-                            log->log_id = internal_lib::GATEWAY_SEND_TO_ME;
-                            log->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-                            log->log_data = *write;
-                            Logger->updateWriteIndex();
-                        }
-
-                        LobOrderQueue->updateWriteIndex();
-                        MMorderQueue->updateReadIndex();
-                    }
+                    gatewayOrderProcess(MMreadOrder);
+                    MMorderQueue->updateReadIndex();
                 }
 
                 // for processing ack  
@@ -196,14 +174,16 @@ namespace internal_lib {
                 // ack received from Matching engine 
 
                 LOBAck* readAck = LobAckQueue->getNextToRead();
-
+                
                 if (LIKELY(readAck != nullptr)) {
                  // log that we  received the ack  from me (matching engine)
+                     
                     LogElement* logger = Logger->getNextToWriteTo();
                     if (LIKELY(logger != nullptr)) {
-                        logger->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock().now().time_since_epoch()).count();
+                        logger->timestamp = internal_lib::now_cycle();
                         logger->log_id = internal_lib::GATEWAY_RECEIVE_ME_ACK;
                         logger->log_data = *readAck;
+                        Logger->updateWriteIndex();
                     }
 
                     //  create ack for sniper order 
@@ -218,20 +198,26 @@ namespace internal_lib {
 
                         LogElement* logger = Logger->getNextToWriteTo();
                     
-                    //   log that gateway  send  user ack
-                    if (LIKELY(logger != nullptr)) {
-                        logger->log_id = internal_lib::GATEWAY_SEND_USER_ACK;
-                        logger->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock().now().time_since_epoch()).count();
-                        logger->log_data = *writeAck;
-                        Logger->updateWriteIndex();
-                    }
+                        //   log that gateway  send  user ack
+                        if (LIKELY(logger != nullptr)) {
+                            logger->log_id = internal_lib::GATEWAY_SEND_USER_ACK;
+                            logger->timestamp = internal_lib::now_cycle();
+                            logger->log_data = *writeAck;
+                            Logger->updateWriteIndex();
+                        }
                         
                         SniperOrderAck->updateWriteIndex();
                         LobAckQueue->updateReadIndex();
                     }
                 }
+             
             }
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+
+            std::string msg = "This is OrderGateway BenchMark";
+            double cpc =  internal_lib::get_cycle_per_ns();
+            internal_lib::showBenchmark(order_gateway_time, cpc, msg);
+        
         }
     };
 };

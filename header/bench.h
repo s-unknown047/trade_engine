@@ -21,7 +21,7 @@ namespace internal_lib {
     //
     inline uint64_t now_cycle() {
         unsigned int aux;
-        _mm_lfence(); // this is to prevent the memory reordering  of the instruction
+        _mm_lfence(); // this is to prevent the memory reordering  of the instruction is a hardware fence. It stops the physical CPU pipeline from moving loads across that boundary.
         uint64_t TSC = __rdtscp(&aux);  //_rdtscp is an x86/x64 compiler intrinsic used to read the processor's Time-Stamp Counter (TSC) along with a core/processor ID
         _mm_lfence();  // this is to prevent the memory reordering  of the instruction
         return TSC; 
@@ -43,14 +43,20 @@ namespace internal_lib {
         return (endCycle - stCycle)/ timePassed;
     }
     
-    void showBenchmark(std::vector<std::chrono::duration<double,std::nano>>& time, std::string msg) {
+    // cpns is cycle per nanosecond
+    void showBenchmark(std::vector<uint64_t> time, double cpns, std::string msg) {
         
         sort(time.begin(), time.end());
+        int n = time.size();
+        // as time vecto have cycle count not time in ns so 
+        auto convert = [&] (uint64_t cycleCount) ->  uint64_t { return (uint64_t)(cycleCount/cpns);};
+        
+        std::cout << "----------" << msg << "----------" << std::endl;
 
-        std::cout<< msg <<" time median: " << time[time.size() / 2].count() << " ns" << std::endl;
-        std::cout<< msg <<" time 0.75: " << time[time.size() * 0.75].count() << " ns" << std::endl;
-        std::cout << msg << " time 0.95: " << time[time.size() * 0.95].count() << " ns" << std::endl;
-        std::cout << msg << " time 0.99: " << time[time.size() * 0.99].count() << " ns" << std::endl;
-
+        std::cout << "P50: " << time[n >> 2] << " ns" << std::endl;
+        std::cout << "P75: " << time[n * 0.75]<< " ns" << std::endl;
+        std::cout << "P95: " << time[n * 0.95] << " ns" << std::endl;
+        std::cout << "P99: " << time[n * 0.99] << " ns" << std::endl;
+        
     }
 }
